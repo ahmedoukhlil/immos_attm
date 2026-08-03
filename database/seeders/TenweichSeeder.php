@@ -87,6 +87,12 @@ class TenweichSeeder extends Seeder
             foreach ($this->biens as $nomDesignation => [$codeCategorie, $codeEtat, $quantite]) {
                 $categorie = Categorie::where('CodeCategorie', $codeCategorie)->first();
 
+                if (!$categorie) {
+                    throw new \RuntimeException(
+                        "Catégorie '{$codeCategorie}' introuvable. Exécutez d'abord CategorieSeeder (php artisan db:seed --class=CategorieSeeder)."
+                    );
+                }
+
                 $designation = Designation::firstOrCreate(
                     ['designation' => $nomDesignation],
                     [
