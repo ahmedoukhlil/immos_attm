@@ -111,6 +111,7 @@ class TenweichSeeder extends Seeder
                         'idEmplacement'   => $emplacement->idEmplacement,
                         'idNatJur'        => $natJur->idNatJur,
                         'idSF'            => $sourceFin->idSF,
+                        'DateAcquisition' => now()->year,
                     ]);
                 }
 
