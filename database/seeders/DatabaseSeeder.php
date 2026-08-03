@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             SourceFinancementSeeder::class,
             BienSeeder::class,
             InventaireSeeder::class,
+            CategorieSeeder::class,
+            TenweichSeeder::class,
         ]);
     }
 }
