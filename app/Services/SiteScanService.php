@@ -351,7 +351,7 @@ class SiteScanService
      */
     public function rouvrir(InventaireSite $inventaireSite, User $user): void
     {
-        if (! $user->isAdmin()) {
+        if (! $user->canManageOperations()) {
             throw new AuthorizationException('Seul un administrateur peut rouvrir un site.');
         }
 

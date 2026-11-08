@@ -152,6 +152,7 @@
             <!-- Navigation -->
             @php
                 $estAdmin = auth()->user()?->isAdmin() ?? false;
+                $peutGerer = auth()->user()?->canManageOperations() ?? false;
                 $peutInventorier = auth()->user()?->canManageInventaire() ?? false;
                 $groupeActif = match (true) {
                     request()->routeIs('biens.*', 'sorties.*') => 'immobilisations',
@@ -186,7 +187,7 @@
                             </a>
                         </li>
 
-                        @if($estAdmin)
+                        @if($peutGerer)
                             <li>
                                 <button type="button" @click="openMenu = openMenu === 'immobilisations' ? '' : 'immobilisations'"
                                         @class([$lien, 'w-full', $groupeActif === 'immobilisations' ? 'text-white' : $lienInactif, 'hover:bg-indigo-700'])
@@ -333,7 +334,7 @@
                                     <div class="hidden md:block text-left">
                                         <div class="text-sm font-medium text-gray-900">{{ auth()->user()->users ?? 'Utilisateur' }}</div>
                                         <div class="text-xs text-gray-500">
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ auth()->user()->role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ match(auth()->user()->role) { 'admin' => 'bg-purple-100 text-purple-800', 'gestionnaire' => 'bg-amber-100 text-amber-800', default => 'bg-blue-100 text-blue-800' } }}">
                                                 {{ auth()->user()->role_name }}
                                             </span>
                                         </div>

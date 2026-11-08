@@ -73,7 +73,7 @@ class DetailBien extends Component
      */
     public function getAuditLogsProperty()
     {
-        if (! auth()->user()?->isAdmin()) {
+        if (! auth()->user()?->canManageOperations()) {
             return collect();
         }
 
@@ -91,7 +91,7 @@ class DetailBien extends Component
      */
     public function supprimer()
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour archiver une immobilisation.');
 
             return;

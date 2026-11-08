@@ -105,7 +105,7 @@ class FormSite extends Component
 
     public function save()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $this->site = trim((string) $this->site);
         $this->code = trim((string) $this->code);

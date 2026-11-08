@@ -110,7 +110,7 @@ class ListeDesignations extends Component
      */
     public function deleteDesignation($designationId)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $designation = Designation::find($designationId);
 

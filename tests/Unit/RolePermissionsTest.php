@@ -33,6 +33,20 @@ class RolePermissionsTest extends TestCase
         $this->assertFalse($agent->canPerform('administration.manage'));
     }
 
+    public function test_manager_can_manage_operations_but_not_users(): void
+    {
+        $manager = new User(['role' => 'gestionnaire']);
+
+        $this->assertTrue($manager->canPerform('dashboard.view'));
+        $this->assertTrue($manager->canPerform('immobilisations.manage'));
+        $this->assertTrue($manager->canPerform('referentiel.manage'));
+        $this->assertTrue($manager->canPerform('inventaires.manage'));
+        $this->assertTrue($manager->canPerform('pwa.scan_assigned'));
+        $this->assertTrue($manager->canManageOperations());
+        $this->assertFalse($manager->isAdmin());
+        $this->assertFalse($manager->canPerform('administration.manage'));
+    }
+
     public function test_unknown_role_or_ability_grants_no_access(): void
     {
         $unknown = new User(['role' => 'inconnu']);

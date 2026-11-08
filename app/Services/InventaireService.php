@@ -59,7 +59,7 @@ class InventaireService
     public function creerInventaire(array $data, User $user): Inventaire
     {
         return DB::transaction(function () use ($data, $user) {
-            if (! $user->isAdmin()) {
+            if (! $user->canManageOperations()) {
                 throw new AuthorizationException('Seul un administrateur peut créer un inventaire.');
             }
 
@@ -110,7 +110,7 @@ class InventaireService
                 if ($agentIds->isNotEmpty()) {
                     $validAgentIds = User::query()
                         ->whereIn('idUser', $agentIds)
-                        ->whereIn('role', ['admin', 'agent'])
+                        ->whereIn('role', ['admin', 'gestionnaire', 'agent'])
                         ->pluck('idUser');
 
                     if ($validAgentIds->count() !== $agentIds->count()) {
@@ -165,7 +165,7 @@ class InventaireService
                 ->lockForUpdate()
                 ->findOrFail($inventaire->id);
 
-            if (! $user->isAdmin()) {
+            if (! $user->canManageOperations()) {
                 throw new AuthorizationException('Seul un administrateur peut démarrer un inventaire.');
             }
 
@@ -403,7 +403,7 @@ class InventaireService
                 ->lockForUpdate()
                 ->findOrFail($inventaire->id);
 
-            if (! $user->isAdmin()) {
+            if (! $user->canManageOperations()) {
                 throw new AuthorizationException('Seul un administrateur peut terminer un inventaire.');
             }
 
@@ -468,7 +468,7 @@ class InventaireService
                 ->lockForUpdate()
                 ->findOrFail($inventaire->id);
 
-            if (! $user->isAdmin()) {
+            if (! $user->canManageOperations()) {
                 throw new AuthorizationException('Seul un administrateur peut clôturer un inventaire.');
             }
 
@@ -1155,7 +1155,7 @@ class InventaireService
      */
     public function reassignerLocalisation(InventaireLocalisation $invLoc, ?User $newAgent, User $user): bool
     {
-        if (! $user->isAdmin()) {
+        if (! $user->canManageOperations()) {
             throw new AuthorizationException('Seul un administrateur peut réassigner une localisation.');
         }
 
@@ -1175,7 +1175,7 @@ class InventaireService
             if ($newAgent) {
                 $lockedNewAgent = User::query()
                     ->whereKey($newAgent->idUser)
-                    ->whereIn('role', ['admin', 'agent'])
+                    ->whereIn('role', ['admin', 'gestionnaire', 'agent'])
                     ->first();
 
                 if (! $lockedNewAgent) {
@@ -1216,7 +1216,7 @@ class InventaireService
         User $agent,
         User $user,
     ): bool {
-        if (! $user->isAdmin()) {
+        if (! $user->canManageOperations()) {
             throw new AuthorizationException('Seul un administrateur peut modifier les assignations.');
         }
 
@@ -1229,7 +1229,7 @@ class InventaireService
                 ->findOrFail($lockedInvLoc->inventaire_id);
             $lockedAgent = User::query()
                 ->whereKey($agent->idUser)
-                ->whereIn('role', ['admin', 'agent'])
+                ->whereIn('role', ['admin', 'gestionnaire', 'agent'])
                 ->first();
 
             if (! in_array($inventaire->statut, ['en_preparation', 'en_cours'], true)) {
@@ -1283,7 +1283,7 @@ class InventaireService
         User $agent,
         User $user,
     ): int {
-        if (! $user->isAdmin()) {
+        if (! $user->canManageOperations()) {
             throw new AuthorizationException('Seul un administrateur peut modifier les assignations.');
         }
 
@@ -1293,7 +1293,7 @@ class InventaireService
                 ->findOrFail($inventaire->id);
             $lockedAgent = User::query()
                 ->whereKey($agent->idUser)
-                ->whereIn('role', ['admin', 'agent'])
+                ->whereIn('role', ['admin', 'gestionnaire', 'agent'])
                 ->first();
 
             if (! in_array($lockedInventaire->statut, ['en_preparation', 'en_cours'], true)) {
@@ -1332,7 +1332,7 @@ class InventaireService
      */
     public function supprimerInventaire(Inventaire $inventaire, User $user): bool
     {
-        if (! $user->isAdmin()) {
+        if (! $user->canManageOperations()) {
             throw new AuthorizationException('Seul un administrateur peut supprimer un inventaire.');
         }
 

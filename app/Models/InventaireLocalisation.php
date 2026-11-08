@@ -117,7 +117,7 @@ class InventaireLocalisation extends Model
 
     public function isAssignedTo(User $user): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->canManageOperations()) {
             return true;
         }
 

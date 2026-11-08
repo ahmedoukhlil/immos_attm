@@ -26,7 +26,7 @@ class HistoriqueTransferts extends Component
     public function mount()
     {
         $user = auth()->user();
-        if (! $user || ! $user->isAdmin()) {
+        if (! $user || ! $user->canManageOperations()) {
             abort(403, 'Accès non autorisé.');
         }
     }

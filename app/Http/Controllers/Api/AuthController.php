@@ -44,8 +44,8 @@ class AuthController extends Controller
             ]);
         }
 
-        // Vérifier que l'utilisateur a le rôle approprié (agent ou admin)
-        if (! in_array($user->role, ['agent', 'admin'])) {
+        // Vérifier que l'utilisateur possède l'un des rôles métier autorisés.
+        if (! in_array($user->role, ['agent', 'gestionnaire', 'admin'], true)) {
             return response()->json([
                 'message' => 'Accès non autorisé pour ce type de compte.',
             ], 403);

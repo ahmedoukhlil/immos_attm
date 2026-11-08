@@ -1,6 +1,6 @@
 <div>
     @php
-        $isAdmin = auth()->user()->isAdmin();
+        $isAdmin = auth()->user()->canManageOperations();
     @endphp
 
     <div class="space-y-6">

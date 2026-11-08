@@ -14,7 +14,7 @@ class GestionRoles extends Component
 
     public $search = '';
 
-    public $filterRole = 'all'; // all, admin, agent
+    public $filterRole = 'all'; // all, admin, gestionnaire, agent
 
     public $selectedUserId = null;
 
@@ -63,7 +63,7 @@ class GestionRoles extends Component
             $this->newRole = $targetRole;
         } else {
             // Sinon, toggle entre les rôles
-            $roles = ['admin', 'agent'];
+            $roles = ['admin', 'gestionnaire', 'agent'];
             $currentIndex = array_search($currentRole, $roles);
             $this->newRole = $roles[($currentIndex + 1) % count($roles)];
         }
@@ -88,7 +88,7 @@ class GestionRoles extends Component
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        if (! in_array($this->newRole, ['admin', 'agent'], true)) {
+        if (! in_array($this->newRole, ['admin', 'gestionnaire', 'agent'], true)) {
             abort(422, 'Rôle invalide.');
         }
 
@@ -127,6 +127,7 @@ class GestionRoles extends Component
 
         $roleNames = [
             'admin' => 'administrateur',
+            'gestionnaire' => 'gestionnaire',
             'agent' => 'agent',
         ];
         $roleName = $roleNames[$this->newRole] ?? $this->newRole;
@@ -167,8 +168,8 @@ class GestionRoles extends Component
             }
         }
 
-        // Alterner entre les deux rôles métier.
-        $roles = ['admin', 'agent'];
+        // Alterner entre les trois rôles métier.
+        $roles = ['admin', 'gestionnaire', 'agent'];
         $currentIndex = array_search($user->role, $roles);
         $nextIndex = ($currentIndex + 1) % count($roles);
         $user->role = $roles[$nextIndex];
@@ -176,6 +177,7 @@ class GestionRoles extends Component
 
         $roleNames = [
             'admin' => 'administrateur',
+            'gestionnaire' => 'gestionnaire',
             'agent' => 'agent',
         ];
         $roleName = $roleNames[$user->role] ?? $user->role;
@@ -191,7 +193,7 @@ class GestionRoles extends Component
             ->when($this->filterRole !== 'all', function ($query) {
                 $query->where('role', $this->filterRole);
             })
-            ->orderByRaw("CASE role WHEN 'admin' THEN 1 WHEN 'agent' THEN 2 ELSE 3 END")
+            ->orderByRaw("CASE role WHEN 'admin' THEN 1 WHEN 'gestionnaire' THEN 2 WHEN 'agent' THEN 3 ELSE 4 END")
             ->orderBy('users')
             ->paginate(20);
 
@@ -199,6 +201,7 @@ class GestionRoles extends Component
         $stats = [
             'total' => User::count(),
             'admins' => User::where('role', 'admin')->count(),
+            'gestionnaires' => User::where('role', 'gestionnaire')->count(),
             'agents' => User::where('role', 'agent')->count(),
         ];
 

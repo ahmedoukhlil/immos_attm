@@ -24,7 +24,7 @@ class InventaireController extends Controller
      */
     public function cloturer(Inventaire $inventaire)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         if ($inventaire->statut === 'cloture') {
             return redirect()->back()->with('warning', 'Cet inventaire est déjà clôturé');
@@ -87,7 +87,7 @@ class InventaireController extends Controller
     {
         $user = auth()->user();
         abort_unless($user && $exportRequest->inventaire->isAccessibleTo($user), 403);
-        abort_unless($user->isAdmin() || $exportRequest->requested_by === $user->idUser, 403);
+        abort_unless($user->canManageOperations() || $exportRequest->requested_by === $user->idUser, 403);
         abort_unless($exportRequest->status === 'ready' && $exportRequest->path, 409);
         abort_if($exportRequest->expires_at?->isPast(), 410, 'Cet export a expiré.');
         abort_unless(Storage::disk($exportRequest->disk)->exists($exportRequest->path), 404);

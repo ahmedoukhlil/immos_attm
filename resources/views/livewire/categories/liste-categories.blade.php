@@ -1,5 +1,5 @@
 <div>
-    @php $isAdmin = auth()->user()->isAdmin(); @endphp
+    @php $isAdmin = auth()->user()->canManageOperations(); @endphp
 
     <div class="space-y-6">
         {{-- Header --}}

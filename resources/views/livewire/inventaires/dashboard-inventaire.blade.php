@@ -14,7 +14,7 @@
     }"
     @keydown.escape.window="if (confirmation) closeConfirmation()">
     @php
-        $isAdmin = auth()->user()->isAdmin();
+        $isAdmin = auth()->user()->canManageOperations();
         $stats = $this->statistiques;
         $statutsInventaire = [
             'en_preparation' => ['label' => 'En préparation', 'color' => 'bg-gray-100 text-gray-800', 'dot' => 'bg-gray-400'],

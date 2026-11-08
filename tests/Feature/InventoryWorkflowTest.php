@@ -2080,7 +2080,7 @@ class InventoryWorkflowTest extends TestCase
         $queries = DB::getQueryLog();
         DB::disableQueryLog();
 
-        $this->assertSame(['total' => 2, 'admins' => 1, 'agents' => 1], $stats);
+        $this->assertSame(['total' => 2, 'admins' => 1, 'gestionnaires' => 0, 'agents' => 1], $stats);
         $this->assertCount(1, $queries);
     }
 

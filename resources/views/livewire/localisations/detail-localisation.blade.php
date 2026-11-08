@@ -1,6 +1,6 @@
 <div>
     @php
-        $isAdmin = auth()->user()->isAdmin();
+        $isAdmin = auth()->user()->canManageOperations();
         $natures = [
             'mobilier' => ['label' => 'Mobilier', 'color' => 'bg-blue-100 text-blue-800'],
             'informatique' => ['label' => 'Informatique', 'color' => 'bg-purple-100 text-purple-800'],

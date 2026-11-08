@@ -79,7 +79,7 @@ class FormLocalisation extends Component
 
     public function save()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $this->localisation = trim((string) $this->localisation);
         $this->code = trim((string) $this->code);

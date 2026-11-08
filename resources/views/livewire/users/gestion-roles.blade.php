@@ -5,7 +5,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">Gestion des rôles</h1>
-                    <p class="text-gray-500 mt-1">Attribuer les rôles administrateur et agent aux utilisateurs</p>
+                    <p class="text-gray-500 mt-1">Attribuer les rôles et leurs permissions fixes aux utilisateurs</p>
                 </div>
                 <a href="{{ route('users.index') }}" 
                    class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
@@ -37,7 +37,18 @@
         @endif
 
         <!-- Statistiques -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Gestionnaires</p>
+                        <p class="text-3xl font-bold text-amber-600 mt-2">{{ $stats['gestionnaires'] }}</p>
+                        <p class="text-xs text-gray-500 mt-1">Tout sauf les utilisateurs</p>
+                    </div>
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600"><x-icon name="briefcase" class="w-6 h-6" /></div>
+                </div>
+            </div>
+
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center justify-between">
                     <div>
@@ -93,6 +104,7 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         <option value="all">Tous les rôles</option>
                         <option value="admin">Administrateurs uniquement</option>
+                        <option value="gestionnaire">Gestionnaires uniquement</option>
                         <option value="agent">Agents uniquement</option>
                     </select>
                 </div>
@@ -109,6 +121,7 @@
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Module</th>
                             <th class="min-w-72 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-purple-700">Administrateur</th>
+                            <th class="min-w-72 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-amber-700">Gestionnaire</th>
                             <th class="min-w-72 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-700">Agent</th>
                         </tr>
                     </thead>
@@ -116,7 +129,7 @@
                         @foreach($permissionMatrix as $permission)
                             <tr>
                                 <th class="px-4 py-3 text-left font-medium text-gray-900">{{ $permission['module'] }}</th>
-                                @foreach(['admin', 'agent'] as $role)
+                                @foreach(['admin', 'gestionnaire', 'agent'] as $role)
                                     <td class="px-4 py-3 align-top text-gray-700">
                                         @if($permission[$role])
                                             <span class="inline-flex items-start gap-2">
@@ -167,6 +180,10 @@
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 border border-purple-200">
                                         <x-icon name="shield-check" class="w-3.5 h-3.5 mr-1 self-center" /> Administrateur
                                     </span>
+                                @elseif($user->role === 'gestionnaire')
+                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                        <x-icon name="briefcase" class="w-3.5 h-3.5 mr-1 self-center" /> Gestionnaire
+                                    </span>
                                 @elseif($user->role === 'agent')
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
                                         <x-icon name="user" class="w-3.5 h-3.5 mr-1 self-center" /> Agent
@@ -181,6 +198,8 @@
                                 <div class="text-xs text-gray-600">
                                     @if($user->role === 'admin')
                                         <span class="inline-flex items-center gap-1 text-green-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> {{ config('roles.summaries.admin') }}</span>
+                                    @elseif($user->role === 'gestionnaire')
+                                        <span class="inline-flex items-center gap-1 text-amber-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> {{ config('roles.summaries.gestionnaire') }}</span>
                                     @elseif($user->role === 'agent')
                                         <span class="inline-flex items-center gap-1 text-blue-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> {{ config('roles.summaries.agent') }}</span>
                                     @else
@@ -198,6 +217,13 @@
                                                 wire:click="confirmRoleChange({{ $user->idUser }}, '{{ $user->role }}', 'admin')"
                                                 class="inline-flex items-center gap-1 text-purple-600 hover:text-purple-900 font-medium text-xs">
                                                 <x-icon name="shield-check" class="w-3.5 h-3.5" /> Admin
+                                            </button>
+                                        @endif
+                                        @if($user->role !== 'gestionnaire')
+                                            <button
+                                                wire:click="confirmRoleChange({{ $user->idUser }}, '{{ $user->role }}', 'gestionnaire')"
+                                                class="inline-flex items-center gap-1 text-amber-600 hover:text-amber-900 font-medium text-xs">
+                                                <x-icon name="briefcase" class="w-3.5 h-3.5" /> Gestionnaire
                                             </button>
                                         @endif
                                         @if($user->role !== 'agent')
@@ -257,6 +283,8 @@
                                             <strong class="text-indigo-600">
                                                 @if($newRole === 'admin')
                                                     Administrateur
+                                                @elseif($newRole === 'gestionnaire')
+                                                    Gestionnaire
                                                 @else
                                                     Agent
                                                 @endif

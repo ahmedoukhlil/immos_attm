@@ -93,7 +93,7 @@ class DemarrerInventaire extends Component
      */
     public function getAgentsProperty()
     {
-        return User::whereIn('role', ['agent', 'admin'])
+        return User::whereIn('role', ['agent', 'gestionnaire', 'admin'])
             ->orderBy('users')
             ->get();
     }
@@ -123,7 +123,7 @@ class DemarrerInventaire extends Component
             'text' => 'Sélectionner un agent',
         ]];
 
-        $agents = User::whereIn('role', ['agent', 'admin'])
+        $agents = User::whereIn('role', ['agent', 'gestionnaire', 'admin'])
             ->orderBy('users')
             ->get()
             ->map(function ($agent) {
@@ -394,7 +394,7 @@ class DemarrerInventaire extends Component
      */
     public function demarrer()
     {
-        abort_unless(Auth::user()?->isAdmin(), 403);
+        abort_unless(Auth::user()?->canManageOperations(), 403);
 
         // Valider toutes les données
         $validated = $this->validate();

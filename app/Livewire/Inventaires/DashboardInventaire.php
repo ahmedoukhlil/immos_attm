@@ -64,7 +64,7 @@ class DashboardInventaire extends Component
                     ->orWhereHas('agents', fn ($sub) => $sub->where('users.idUser', $user->idUser));
             })->exists();
 
-        if (! $user->isAdmin() && ! $hasAccess) {
+        if (! $user->canManageOperations() && ! $hasAccess) {
             abort(403, 'Vous n\'avez pas accès à cet inventaire.');
         }
 
@@ -322,7 +322,7 @@ class DashboardInventaire extends Component
      */
     public function getAgentsDisponiblesProperty()
     {
-        return User::whereIn('role', ['agent', 'admin'])
+        return User::whereIn('role', ['agent', 'gestionnaire', 'admin'])
             ->orderBy('users')
             ->get();
     }
@@ -517,7 +517,7 @@ class DashboardInventaire extends Component
      */
     public function passerEnCours(): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Seuls les administrateurs peuvent démarrer un inventaire.');
 
             return;
@@ -543,7 +543,7 @@ class DashboardInventaire extends Component
      */
     public function terminerInventaire(): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Seuls les administrateurs peuvent terminer un inventaire.');
 
             return;
@@ -574,7 +574,7 @@ class DashboardInventaire extends Component
      */
     public function cloturerInventaire()
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Seuls les administrateurs peuvent clôturer un inventaire.');
 
             return;
@@ -601,7 +601,7 @@ class DashboardInventaire extends Component
      */
     public function reassignerLocalisation($invLocId, $userId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Seuls les administrateurs peuvent réassigner des localisations.');
 
             return;
@@ -633,7 +633,7 @@ class DashboardInventaire extends Component
      */
     public function toggleAgentLocalisation($invLocId, $userId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Seuls les administrateurs peuvent modifier les assignations.');
 
             return;
@@ -702,7 +702,7 @@ class DashboardInventaire extends Component
      */
     public function rouvrirSite($inventaireSiteId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Seuls les administrateurs peuvent rouvrir un site.');
 
             return;

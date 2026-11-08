@@ -124,7 +124,7 @@ class ListeInventaires extends Component
     public function archiverInventaire($inventaireId): void
     {
         // Vérifier que l'utilisateur est admin
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour clôturer un inventaire.');
 
             return;
@@ -158,7 +158,7 @@ class ListeInventaires extends Component
     public function supprimerInventaire($inventaireId): void
     {
         // Vérifier que l'utilisateur est admin
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour supprimer un inventaire.');
 
             return;
@@ -191,7 +191,7 @@ class ListeInventaires extends Component
      */
     public function ouvrirModalAgents($inventaireId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             return;
         }
 
@@ -222,7 +222,7 @@ class ListeInventaires extends Component
      */
     public function getModalLocalisationsProperty()
     {
-        if (! Auth::user()->isAdmin() || ! $this->modalInventaireId) {
+        if (! Auth::user()->canManageOperations() || ! $this->modalInventaireId) {
             return collect();
         }
 
@@ -237,11 +237,11 @@ class ListeInventaires extends Component
      */
     public function getAllAgentsProperty()
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             return collect();
         }
 
-        return User::whereIn('role', ['agent', 'admin'])
+        return User::whereIn('role', ['agent', 'gestionnaire', 'admin'])
             ->orderBy('users')
             ->get();
     }
@@ -251,7 +251,7 @@ class ListeInventaires extends Component
      */
     public function toggleAgentLoc($invLocId, $userId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             return;
         }
 
@@ -277,7 +277,7 @@ class ListeInventaires extends Component
      */
     public function ajouterAgentPartout($userId): void
     {
-        if (! Auth::user()->isAdmin() || ! $this->modalInventaireId || ! $userId) {
+        if (! Auth::user()->canManageOperations() || ! $this->modalInventaireId || ! $userId) {
             return;
         }
 

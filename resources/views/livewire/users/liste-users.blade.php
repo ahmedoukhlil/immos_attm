@@ -5,7 +5,7 @@
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Gestion des Utilisateurs</h1>
                 <p class="mt-1 text-sm text-gray-500">
-                    {{ $stats['total'] }} utilisateur(s) | {{ $stats['admins'] }} administrateur(s) | {{ $stats['agents'] }} agent(s)
+                    {{ $stats['total'] }} utilisateur(s) · {{ $stats['admins'] }} administrateur(s) · {{ $stats['gestionnaires'] }} gestionnaire(s) · {{ $stats['agents'] }} agent(s)
                 </p>
             </div>
             
@@ -30,7 +30,7 @@
         </div>
 
         {{-- Statistiques --}}
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <div class="flex items-center justify-between">
                     <div>
@@ -41,6 +41,17 @@
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">Gestionnaires</p>
+                        <p class="text-2xl font-bold text-amber-600">{{ $stats['gestionnaires'] }}</p>
+                    </div>
+                    <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
+                        <x-icon name="briefcase" class="w-6 h-6" />
                     </div>
                 </div>
             </div>
@@ -124,6 +135,7 @@
                             :options="[
                                 ['value' => 'all', 'text' => 'Tous les rôles'],
                                 ['value' => 'admin', 'text' => 'Administrateur'],
+                                ['value' => 'gestionnaire', 'text' => 'Gestionnaire'],
                                 ['value' => 'agent', 'text' => 'Agent'],
                             ]"
                             placeholder="Tous les rôles"
@@ -238,8 +250,12 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                                        {{ $user->role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {{ match($user->role) {
+                                            'admin' => 'bg-purple-100 text-purple-800',
+                                            'gestionnaire' => 'bg-amber-100 text-amber-800',
+                                            default => 'bg-blue-100 text-blue-800',
+                                        } }}">
                                         {{ $user->role_name }}
                                     </span>
                                 </td>

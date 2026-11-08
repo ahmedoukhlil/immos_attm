@@ -1,6 +1,6 @@
 <div>
     @php
-        $isAdmin = auth()->user()->isAdmin();
+        $isAdmin = auth()->user()->canManageOperations();
     @endphp
 
     {{-- Header avec breadcrumb et actions --}}
@@ -340,7 +340,7 @@
         </div>
     </div>
 
-    @if(auth()->user()->isAdmin())
+    @if(auth()->user()->canManageOperations())
         <div class="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <div class="mb-4">
                 <h2 class="text-xl font-semibold text-gray-900">Journal d’audit</h2>

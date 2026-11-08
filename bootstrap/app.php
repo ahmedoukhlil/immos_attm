@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CanManageInventaire;
+use App\Http\Middleware\CanManageOperations;
 use App\Http\Middleware\CheckSessionTimeout;
 use App\Http\Middleware\EnsureApiInventoryAccess;
 use App\Http\Middleware\IsAdmin;
@@ -44,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => IsAdmin::class,
             'inventory' => CanManageInventaire::class,
+            'manage' => CanManageOperations::class,
             'session.timeout' => CheckSessionTimeout::class,
             'api.inventory' => EnsureApiInventoryAccess::class,
             'abilities' => CheckAbilities::class,

@@ -50,4 +50,34 @@ class PagesAdministrationTest extends TestCase
             $this->actingAs($admin)->get($page)->assertOk();
         }
     }
+
+    public function test_manager_can_access_operations_but_not_user_management(): void
+    {
+        $manager = User::create([
+            'users' => 'gestionnaire-pages',
+            'mdp' => 'MotDePasse123',
+            'role' => 'gestionnaire',
+        ]);
+
+        foreach ([
+            '/dashboard',
+            '/profil',
+            '/biens',
+            '/biens/create',
+            '/localisations/create',
+            '/sites',
+            '/categories',
+            '/designations',
+            '/qrcodes/sites',
+            '/inventaires',
+            '/inventaires/create',
+        ] as $page) {
+            $this->actingAs($manager)->get($page)->assertOk();
+        }
+
+        foreach (['/users', '/users/create', '/users/roles'] as $page) {
+            $this->actingAs($manager)->get($page)
+                ->assertRedirect(route('dashboard'));
+        }
+    }
 }

@@ -39,7 +39,7 @@ class ImportBiens extends Component
 
     public function analyser(InventaireExcelImporter $importer): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $this->validerFichier();
         $this->resultat = null;
@@ -70,7 +70,7 @@ class ImportBiens extends Component
 
     public function importer(InventaireExcelImporter $importer): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         if ($this->analyse === null) {
             return;

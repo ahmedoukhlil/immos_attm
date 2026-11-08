@@ -29,7 +29,7 @@ class ListeSorties extends Component
 
     public function mount(): void
     {
-        abort_unless(Auth::user()?->isAdmin(), 403, 'Accès non autorisé.');
+        abort_unless(Auth::user()?->canManageOperations(), 403, 'Accès non autorisé.');
     }
 
     public function updating(string $propriete): void

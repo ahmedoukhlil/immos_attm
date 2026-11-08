@@ -18,7 +18,7 @@ class ListeUsers extends Component
      */
     public $search = '';
 
-    public $filterRole = 'all'; // all, admin, agent, superuser, immobilisation, stock
+    public $filterRole = 'all'; // all, admin, gestionnaire, agent
 
     public $sortField = 'users';
 
@@ -165,12 +165,14 @@ class ListeUsers extends Component
         $stats = User::query()
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins")
+            ->selectRaw("SUM(CASE WHEN role = 'gestionnaire' THEN 1 ELSE 0 END) as gestionnaires")
             ->selectRaw("SUM(CASE WHEN role = 'agent' THEN 1 ELSE 0 END) as agents")
             ->first();
 
         return [
             'total' => (int) ($stats->total ?? 0),
             'admins' => (int) ($stats->admins ?? 0),
+            'gestionnaires' => (int) ($stats->gestionnaires ?? 0),
             'agents' => (int) ($stats->agents ?? 0),
         ];
     }

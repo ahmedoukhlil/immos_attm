@@ -81,7 +81,7 @@ class RapportInventaire extends Component
     {
         return InventaireExportRequest::query()
             ->where('inventaire_id', $this->inventaire->id)
-            ->when(! Auth::user()?->isAdmin(), fn ($query) => $query->where('requested_by', Auth::id()))
+            ->when(! Auth::user()?->canManageOperations(), fn ($query) => $query->where('requested_by', Auth::id()))
             ->latest('id')
             ->limit(6)
             ->get();

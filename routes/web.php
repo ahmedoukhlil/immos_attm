@@ -67,7 +67,7 @@ if (file_exists(__DIR__.'/auth.php')) {
 
 Route::middleware(['auth', 'session.timeout'])->group(function () {
 
-    // Accessible à tous les utilisateurs authentifiés (admin et agent).
+    // Accessible à tous les utilisateurs authentifiés.
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     // Modification du mot de passe.
@@ -75,7 +75,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
 
     /*
     |----------------------------------------------------------------------
-    | Routes avec Middleware 'inventory' (Admin + Agent)
+    | Routes avec Middleware 'inventory' (tous les rôles métier)
     |----------------------------------------------------------------------
     */
     Route::middleware(['inventory'])->group(function () {
@@ -89,12 +89,12 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
             Route::get('/', ListeLocalisations::class)->name('index');
 
             // Doit être avant les routes avec paramètres
-            Route::get('/export/excel', [LocalisationController::class, 'exportExcel'])->middleware('admin')->name('export-excel');
-            Route::post('/imprimer-etiquettes', [LocalisationController::class, 'imprimerEtiquettes'])->middleware('admin')->name('imprimer-etiquettes');
-            Route::get('/create', FormLocalisation::class)->middleware('admin')->name('create');
-            Route::get('/{localisation}/qr-code', [LocalisationController::class, 'generateQRCode'])->middleware('admin')->name('qr-code');
-            Route::get('/{localisation}/etiquette', [LocalisationController::class, 'downloadEtiquette'])->middleware('admin')->name('etiquette');
-            Route::get('/{localisation}/edit', FormLocalisation::class)->middleware('admin')->name('edit');
+            Route::get('/export/excel', [LocalisationController::class, 'exportExcel'])->middleware('manage')->name('export-excel');
+            Route::post('/imprimer-etiquettes', [LocalisationController::class, 'imprimerEtiquettes'])->middleware('manage')->name('imprimer-etiquettes');
+            Route::get('/create', FormLocalisation::class)->middleware('manage')->name('create');
+            Route::get('/{localisation}/qr-code', [LocalisationController::class, 'generateQRCode'])->middleware('manage')->name('qr-code');
+            Route::get('/{localisation}/etiquette', [LocalisationController::class, 'downloadEtiquette'])->middleware('manage')->name('etiquette');
+            Route::get('/{localisation}/edit', FormLocalisation::class)->middleware('manage')->name('edit');
 
             // Doit être en dernier car il capture toutes les routes
             Route::get('/{localisation}', DetailLocalisation::class)->name('show');
@@ -105,7 +105,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
         | Sites (bureaux, services, salles) et leur responsable
         |------------------------------------------------------------------
         */
-        Route::prefix('sites')->name('sites.')->middleware('admin')->group(function () {
+        Route::prefix('sites')->name('sites.')->middleware('manage')->group(function () {
             Route::get('/', ListeSites::class)->name('index');
             Route::get('/create', FormSite::class)->name('create');
             Route::get('/{site}/etiquettes', [EtiquetteController::class, 'apercu'])->name('etiquettes.apercu');
@@ -120,7 +120,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
         | Catégories (et leur imputation comptable)
         |------------------------------------------------------------------
         */
-        Route::prefix('categories')->name('categories.')->middleware('admin')->group(function () {
+        Route::prefix('categories')->name('categories.')->middleware('manage')->group(function () {
             Route::get('/', ListeCategories::class)->name('index');
             Route::get('/create', FormCategorie::class)->name('create');
             Route::get('/{categorie}/edit', FormCategorie::class)->name('edit');
@@ -131,7 +131,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
         | Désignations
         |------------------------------------------------------------------
         */
-        Route::prefix('designations')->name('designations.')->middleware('admin')->group(function () {
+        Route::prefix('designations')->name('designations.')->middleware('manage')->group(function () {
             Route::get('/', ListeDesignations::class)->name('index');
             Route::get('/create', FormDesignation::class)->name('create');
             Route::get('/{designation}/edit', FormDesignation::class)->name('edit');
@@ -142,7 +142,7 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
         | QR Codes des Sites (Pour PWA Scanner)
         |------------------------------------------------------------------
         */
-        Route::prefix('qrcodes/sites')->name('qrcodes.')->middleware('admin')->group(function () {
+        Route::prefix('qrcodes/sites')->name('qrcodes.')->middleware('manage')->group(function () {
             Route::get('/', [QRCodeSiteController::class, 'index'])->name('sites');
             Route::get('/pdf', [QRCodeSiteController::class, 'downloadPdf'])->name('sites.pdf');
             Route::post('/print', [QRCodeSiteController::class, 'printSelected'])->name('print-selected');
@@ -156,18 +156,18 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
         */
         Route::prefix('biens')->name('biens.')->group(function () {
             Route::get('/', ListeBiens::class)->name('index');
-            Route::get('/create', FormBien::class)->middleware('admin')->name('create');
-            Route::get('/transfert', TransfertBien::class)->middleware('admin')->name('transfert');
-            Route::get('/transfert/historique', HistoriqueTransferts::class)->middleware('admin')->name('transfert.historique');
+            Route::get('/create', FormBien::class)->middleware('manage')->name('create');
+            Route::get('/transfert', TransfertBien::class)->middleware('manage')->name('transfert');
+            Route::get('/transfert/historique', HistoriqueTransferts::class)->middleware('manage')->name('transfert.historique');
 
             // Doivent être avant /{bien}
             // Impression groupée par site (33 étiquettes par page A4)
             // Impression de toutes les étiquettes, groupées par site (un seul fichier)
             // Impression groupée par intervalle d'identifiants (33 étiquettes par page A4)
-            Route::get('/export/excel', [BienController::class, 'exportExcel'])->middleware('admin')->name('export-excel');
-            Route::get('/import/modele', [BienController::class, 'modeleImport'])->middleware('admin')->name('import.modele');
+            Route::get('/export/excel', [BienController::class, 'exportExcel'])->middleware('manage')->name('export-excel');
+            Route::get('/import/modele', [BienController::class, 'modeleImport'])->middleware('manage')->name('import.modele');
 
-            Route::get('/{bien}/edit', FormBien::class)->middleware('admin')->name('edit');
+            Route::get('/{bien}/edit', FormBien::class)->middleware('manage')->name('edit');
             Route::get('/{bien}', DetailBien::class)->name('show');
             // Étiquette avec code-barres généré côté client
             // Étiquette avec code-barres de la base
@@ -180,24 +180,24 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
         */
         Route::prefix('inventaires')->name('inventaires.')->group(function () {
             Route::get('/', ListeInventaires::class)->name('index');
-            Route::get('/create', DemarrerInventaire::class)->middleware('admin')->name('create');
+            Route::get('/create', DemarrerInventaire::class)->middleware('manage')->name('create');
             Route::get('/exports/{exportRequest}/download', [InventaireController::class, 'downloadExport'])
                 ->name('exports.download');
             Route::get('/{inventaire}', DashboardInventaire::class)->name('show');
             Route::get('/{inventaire}/rapport', RapportInventaire::class)->name('rapport');
-            Route::get('/{inventaire}/report', ReportInventaire::class)->middleware('admin')->name('report');
+            Route::get('/{inventaire}/report', ReportInventaire::class)->middleware('manage')->name('report');
             Route::post('/{inventaire}/export-pdf', [InventaireController::class, 'exportPDF'])->name('export-pdf');
             Route::post('/{inventaire}/export-excel', [InventaireController::class, 'exportExcel'])->name('export-excel');
-            Route::post('/{inventaire}/cloturer', [InventaireController::class, 'cloturer'])->middleware('admin')->name('cloturer');
+            Route::post('/{inventaire}/cloturer', [InventaireController::class, 'cloturer'])->middleware('manage')->name('cloturer');
         });
     });
 
     /*
     |----------------------------------------------------------------------
-    | Routes avec Middleware 'admin' (Administrateur uniquement)
+    | Routes opérationnelles (Administrateur + Gestionnaire)
     |----------------------------------------------------------------------
     */
-    Route::middleware(['admin'])->group(function () {
+    Route::middleware(['manage'])->group(function () {
         // Sorties d'immobilisations (réforme, rebut, cession, perte, vol…)
         Route::prefix('sorties')->name('sorties.')->group(function () {
             Route::get('/', ListeSorties::class)->name('index');
@@ -205,6 +205,9 @@ Route::middleware(['auth', 'session.timeout'])->group(function () {
             Route::get('/{sortie}', DetailSortie::class)->name('show');
             Route::get('/{sortie}/pv', [SortieController::class, 'pv'])->name('pv');
         });
+    });
+
+    Route::middleware(['admin'])->group(function () {
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/', ListeUsers::class)->name('index');
             Route::get('/create', FormUser::class)->name('create');

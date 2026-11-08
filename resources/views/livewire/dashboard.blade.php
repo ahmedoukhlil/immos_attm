@@ -465,7 +465,7 @@
     </div>
 
     <!-- Section Actions rapides (Admin) -->
-    @if(auth()->user()->isAdmin())
+    @if(auth()->user()->canManageOperations())
         <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-6">Actions rapides</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

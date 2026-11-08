@@ -41,7 +41,7 @@ class ListeCategories extends Component
 
     public function deleteCategorie($categorieId): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $categorie = Categorie::withCount('immobilisations')->find($categorieId);
 

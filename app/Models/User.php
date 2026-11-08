@@ -146,6 +146,11 @@ class User extends Authenticatable
         return $query->where('role', 'agent');
     }
 
+    public function scopeGestionnaires(Builder $query): Builder
+    {
+        return $query->where('role', 'gestionnaire');
+    }
+
     /**
      * Scope pour filtrer par rôle
      */
@@ -165,6 +170,7 @@ class User extends Authenticatable
     {
         return match ($this->role) {
             'admin' => 'Administrateur',
+            'gestionnaire' => 'Gestionnaire',
             'agent' => 'Agent',
             default => 'Non défini',
         };
@@ -190,6 +196,11 @@ class User extends Authenticatable
         return $this->role === 'agent';
     }
 
+    public function isGestionnaire(): bool
+    {
+        return $this->role === 'gestionnaire';
+    }
+
     /**
      * Vérifie une action métier depuis la matrice centralisée des rôles.
      */
@@ -208,6 +219,11 @@ class User extends Authenticatable
     public function canManageInventaire(): bool
     {
         return $this->canPerform('inventaires.view');
+    }
+
+    public function canManageOperations(): bool
+    {
+        return $this->canPerform('operations.manage');
     }
 
     /**

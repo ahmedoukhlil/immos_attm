@@ -1,6 +1,6 @@
 <div>
     @php
-        $isAdmin = auth()->user()->isAdmin();
+        $isAdmin = auth()->user()->canManageOperations();
         $statutConfig = [
             'en_preparation' => ['label' => 'Préparation', 'bg' => 'bg-gray-100', 'text' => 'text-gray-700', 'dot' => 'bg-gray-400'],
             'en_cours'       => ['label' => 'En cours',     'bg' => 'bg-blue-50',  'text' => 'text-blue-700', 'dot' => 'bg-blue-500'],

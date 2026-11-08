@@ -31,7 +31,7 @@ class ReportInventaire extends Component
 
     public function mount(Inventaire $inventaire): void
     {
-        abort_unless(Auth::user()?->isAdmin(), 403, 'Accès non autorisé.');
+        abort_unless(Auth::user()?->canManageOperations(), 403, 'Accès non autorisé.');
 
         $this->inventaire = $inventaire;
     }

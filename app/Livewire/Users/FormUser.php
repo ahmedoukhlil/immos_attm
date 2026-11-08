@@ -59,6 +59,7 @@ class FormUser extends Component
     {
         return [
             ['value' => 'agent', 'text' => 'Agent'],
+            ['value' => 'gestionnaire', 'text' => 'Gestionnaire'],
             ['value' => 'admin', 'text' => 'Administrateur'],
         ];
     }
@@ -77,7 +78,7 @@ class FormUser extends Component
                     ? 'unique:users,users,'.$this->userId.',idUser'
                     : 'unique:users,users',
             ],
-            'role' => 'required|in:admin,agent',
+            'role' => 'required|in:admin,gestionnaire,agent',
         ];
 
         // Règles pour le mot de passe
@@ -128,7 +129,7 @@ class FormUser extends Component
             $user = User::findOrFail($this->userId);
 
             // Vérifier si on change le rôle d'admin vers agent
-            if ($user->role === 'admin' && $this->role === 'agent') {
+            if ($user->role === 'admin' && $this->role !== 'admin') {
                 $adminsCount = User::where('role', 'admin')
                     ->where('idUser', '!=', $this->userId)
                     ->count();

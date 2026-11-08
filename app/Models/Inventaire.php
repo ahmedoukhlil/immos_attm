@@ -126,7 +126,7 @@ class Inventaire extends Model
 
     public function scopeAccessibleTo(Builder $query, User $user): Builder
     {
-        if ($user->isAdmin()) {
+        if ($user->canManageOperations()) {
             return $query;
         }
 
@@ -138,7 +138,7 @@ class Inventaire extends Model
 
     public function isAccessibleTo(User $user): bool
     {
-        return $user->isAdmin()
+        return $user->canManageOperations()
             || $this->inventaireLocalisations()->byAgent($user->idUser)->exists();
     }
 

@@ -30,7 +30,7 @@ class DetailSortie extends Component
 
     public function mount(Sortie $sortie): void
     {
-        abort_unless(Auth::user()?->isAdmin(), 403, 'Accès non autorisé.');
+        abort_unless(Auth::user()?->canManageOperations(), 403, 'Accès non autorisé.');
 
         $this->sortie = $sortie;
         $this->numero = $sortie->numero;

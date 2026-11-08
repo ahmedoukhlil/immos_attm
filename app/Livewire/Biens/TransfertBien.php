@@ -36,7 +36,7 @@ class TransfertBien extends Component
 
     public function mount()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403, 'Accès non autorisé.');
+        abort_unless(auth()->user()?->canManageOperations(), 403, 'Accès non autorisé.');
     }
 
     public function ajouterBien($bienId)
@@ -180,7 +180,7 @@ class TransfertBien extends Component
      */
     public function transferer()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $validated = $this->validate();
         $site = Site::with('localisation')->findOrFail($validated['site_id']);

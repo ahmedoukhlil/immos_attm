@@ -34,7 +34,7 @@ class InventaireController extends Controller
     {
         $query = Inventaire::where('statut', 'en_cours');
 
-        if (! $request->user()->isAdmin()) {
+        if (! $request->user()->canManageOperations()) {
             $query->whereHas('inventaireLocalisations', fn ($localisations) => $localisations
                 ->byAgent($request->user()->idUser));
         }
@@ -82,7 +82,7 @@ class InventaireController extends Controller
 
         $query = InventaireLocalisation::where('inventaire_id', $inventaire->id);
 
-        if (! $request->user()->isAdmin()) {
+        if (! $request->user()->canManageOperations()) {
             $query->byAgent($userId);
         }
 

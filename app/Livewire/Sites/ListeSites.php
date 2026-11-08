@@ -61,7 +61,7 @@ class ListeSites extends Component
      */
     public function deleteSite($siteId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour supprimer un site.');
 
             return;

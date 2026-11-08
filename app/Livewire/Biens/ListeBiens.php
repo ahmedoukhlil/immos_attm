@@ -176,7 +176,7 @@ class ListeBiens extends Component
 
     public function updatedShowArchived(): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $this->selectedBiens = [];
         $this->resetPage();
@@ -203,7 +203,7 @@ class ListeBiens extends Component
      */
     public function deleteBien($bienId): void
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour supprimer un bien.');
 
             return;
@@ -227,7 +227,7 @@ class ListeBiens extends Component
      */
     public function restoreBien($bienId): void
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         $bien = Immobilisation::onlyTrashed()->find($bienId);
 
@@ -246,7 +246,7 @@ class ListeBiens extends Component
      */
     public function exportSelected()
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->canManageOperations(), 403);
 
         if (empty($this->selectedBiens)) {
             session()->flash('warning', 'Veuillez sélectionner au moins un bien à exporter.');
@@ -274,7 +274,7 @@ class ListeBiens extends Component
     private function applyFilters(Builder $query): void
     {
         if ($this->showArchived) {
-            abort_unless(auth()->user()?->isAdmin(), 403);
+            abort_unless(auth()->user()?->canManageOperations(), 403);
             $query->onlyTrashed();
         }
 

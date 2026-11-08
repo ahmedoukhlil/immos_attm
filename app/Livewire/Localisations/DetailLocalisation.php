@@ -205,7 +205,7 @@ class DetailLocalisation extends Component
      */
     public function supprimer()
     {
-        if (! Auth::user()->isAdmin()) {
+        if (! Auth::user()->canManageOperations()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour supprimer une localisation.');
 
             return;

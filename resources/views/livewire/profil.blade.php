@@ -21,8 +21,12 @@
             <div>
                 <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Rôle</label>
                 <p class="mt-1">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                        {{ auth()->user()->role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }}">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        {{ match(auth()->user()->role) {
+                            'admin' => 'bg-purple-100 text-purple-800',
+                            'gestionnaire' => 'bg-amber-100 text-amber-800',
+                            default => 'bg-blue-100 text-blue-800',
+                        } }}">
                         {{ auth()->user()->role_name }}
                     </span>
                 </p>
