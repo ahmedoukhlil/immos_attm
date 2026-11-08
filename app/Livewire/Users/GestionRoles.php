@@ -205,6 +205,7 @@ class GestionRoles extends Component
         return view('livewire.users.gestion-roles', [
             'users' => $users,
             'stats' => $stats,
+            'permissionMatrix' => config('roles.matrix', []),
         ]);
     }
 }

@@ -27,7 +27,7 @@ class CanManageInventaire
 
         $user = Auth::user();
 
-        if (! in_array($user->role, ['admin', 'agent'], true)) {
+        if (! $user->canPerform('inventaires.view')) {
             return redirect()->route('dashboard')
                 ->with('error', 'Accès non autorisé');
         }

@@ -99,28 +99,41 @@
             </div>
         </div>
 
-        <!-- Légende des permissions -->
+        <!-- Matrice fixe des permissions -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-900"><x-icon name="information-circle" class="w-4 h-4" /> Permissions par rôle</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                    <p class="mb-2 flex items-center gap-1.5 font-semibold text-purple-700"><x-icon name="shield-check" class="w-4 h-4" /> Administrateur</p>
-                    <ul class="text-gray-700 space-y-1">
-                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Gestion des immobilisations, transferts et étiquettes</li>
-                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Référentiel : localisations, sites, catégories, désignations</li>
-                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Préparation, suivi et clôture des inventaires</li>
-                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Gestion des utilisateurs</li>
-                    </ul>
-                </div>
-                <div>
-                    <p class="mb-2 flex items-center gap-1.5 font-semibold text-blue-700"><x-icon name="user" class="w-4 h-4" /> Agent</p>
-                    <ul class="text-gray-700 space-y-1">
-                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Scan des sites assignés avec l'application mobile</li>
-                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Consultation des immobilisations, localisations et inventaires</li>
-                        <li class="flex items-center gap-2"><x-icon name="x-circle" class="w-4 h-4 text-red-500" /> Modification du référentiel et des immobilisations</li>
-                        <li class="flex items-center gap-2"><x-icon name="x-circle" class="w-4 h-4 text-red-500" /> Gestion des utilisateurs</li>
-                    </ul>
-                </div>
+            <h3 class="mb-1 flex items-center gap-2 text-sm font-semibold text-blue-900"><x-icon name="information-circle" class="w-4 h-4" /> Actions fixées pour chaque rôle</h3>
+            <p class="mb-4 text-xs text-blue-800">Le changement de rôle applique immédiatement toutes les autorisations ci-dessous. Les permissions individuelles ne sont pas modifiables.</p>
+            <div class="overflow-x-auto rounded-lg border border-blue-200 bg-white">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Module</th>
+                            <th class="min-w-72 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-purple-700">Administrateur</th>
+                            <th class="min-w-72 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-blue-700">Agent</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($permissionMatrix as $permission)
+                            <tr>
+                                <th class="px-4 py-3 text-left font-medium text-gray-900">{{ $permission['module'] }}</th>
+                                @foreach(['admin', 'agent'] as $role)
+                                    <td class="px-4 py-3 align-top text-gray-700">
+                                        @if($permission[$role])
+                                            <span class="inline-flex items-start gap-2">
+                                                <x-icon name="check-circle" class="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                                                <span>{{ $permission[$role] }}</span>
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-2 text-red-600">
+                                                <x-icon name="x-circle" class="h-4 w-4" /> Aucun accès
+                                            </span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -167,9 +180,9 @@
                             <td class="px-6 py-4 text-center">
                                 <div class="text-xs text-gray-600">
                                     @if($user->role === 'admin')
-                                        <span class="inline-flex items-center gap-1 text-green-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> Accès complet</span>
+                                        <span class="inline-flex items-center gap-1 text-green-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> {{ config('roles.summaries.admin') }}</span>
                                     @elseif($user->role === 'agent')
-                                        <span class="inline-flex items-center gap-1 text-blue-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> Inventaires assignés</span>
+                                        <span class="inline-flex items-center gap-1 text-blue-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> {{ config('roles.summaries.agent') }}</span>
                                     @else
                                         <span class="inline-flex items-center gap-1 text-red-600"><x-icon name="x-circle" class="w-3.5 h-3.5" /> Aucun accès</span>
                                     @endif

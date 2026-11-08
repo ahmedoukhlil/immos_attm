@@ -17,7 +17,7 @@ class EnsureApiInventoryAccess
     {
         $user = $request->user();
 
-        if (! $user || ! in_array($user->role, ['admin', 'agent'], true)) {
+        if (! $user || ! $user->canPerform('pwa.access')) {
             return response()->json(['message' => 'Accès non autorisé.'], 403);
         }
 

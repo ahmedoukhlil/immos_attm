@@ -191,13 +191,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Vérifie une action métier depuis la matrice centralisée des rôles.
+     */
+    public function canPerform(string $ability): bool
+    {
+        $abilities = config('roles.abilities', []);
+
+        return in_array($this->role, $abilities[$ability] ?? [], true);
+    }
+
+    /**
      * Vérifie si l'utilisateur peut gérer les inventaires
      * Les administrateurs préparent et clôturent les inventaires. Les agents
      * exécutent uniquement les opérations terrain qui leur sont affectées.
      */
     public function canManageInventaire(): bool
     {
-        return in_array($this->role, ['admin', 'agent']);
+        return $this->canPerform('inventaires.view');
     }
 
     /**

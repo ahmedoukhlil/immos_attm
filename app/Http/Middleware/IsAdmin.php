@@ -20,7 +20,7 @@ class IsAdmin
     public function handle(Request $request, Closure $next): Response
     {
         // Vérifier que l'utilisateur est authentifié
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login')
                 ->with('error', 'Vous devez être connecté pour accéder à cette page.');
         }
@@ -28,7 +28,7 @@ class IsAdmin
         $user = Auth::user();
 
         // Vérifier que l'utilisateur a le rôle administrateur
-        if ($user->role !== 'admin') {
+        if (! $user->canPerform('administration.manage')) {
             return redirect()->route('dashboard')
                 ->with('error', 'Accès réservé aux administrateurs');
         }
