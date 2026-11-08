@@ -61,7 +61,7 @@
         }
     </style>
 
-    @livewireScripts(['url' => url('livewire/livewire.js')])
+    @livewireScripts
     <script>
         document.querySelector('script[data-update-uri]')?.setAttribute('data-update-uri', @js(url('livewire/update')));
     </script>
