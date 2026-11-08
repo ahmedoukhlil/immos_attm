@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Exceptions\InventaireWorkflowException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
 
 class InventaireLocalisation extends Model
 {
@@ -43,12 +44,9 @@ class InventaireLocalisation extends Model
         return $this->belongsTo(Inventaire::class);
     }
 
-    /**
-     * Relation avec la localisation (LocalisationImmo)
-     */
     public function localisation(): BelongsTo
     {
-        return $this->belongsTo(LocalisationImmo::class, 'localisation_id', 'idLocalisation');
+        return $this->belongsTo(Localisation::class);
     }
 
     /**
@@ -74,6 +72,16 @@ class InventaireLocalisation extends Model
     public function inventaireScans(): HasMany
     {
         return $this->hasMany(InventaireScan::class);
+    }
+
+    public function biensAttendus(): HasMany
+    {
+        return $this->hasMany(InventaireImmobilisationAttendue::class);
+    }
+
+    public function inventaireSites(): HasMany
+    {
+        return $this->hasMany(InventaireSite::class);
     }
 
     /**
@@ -103,8 +111,27 @@ class InventaireLocalisation extends Model
     {
         return $query->where(function ($q) use ($userId) {
             $q->where('user_id', $userId)
-              ->orWhereHas('agents', fn($sub) => $sub->where('users.idUser', $userId));
+                ->orWhereHas('agents', fn ($sub) => $sub->where('users.idUser', $userId));
         });
+    }
+
+    public function isAssignedTo(User $user): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ((int) $this->user_id === (int) $user->idUser) {
+            return true;
+        }
+
+        if ($this->relationLoaded('agents')) {
+            return $this->agents->contains(
+                fn (User $agent): bool => (int) $agent->idUser === (int) $user->idUser,
+            );
+        }
+
+        return $this->agents()->where('users.idUser', $user->idUser)->exists();
     }
 
     /**
@@ -129,7 +156,7 @@ class InventaireLocalisation extends Model
     public function getTauxConformiteAttribute(): float
     {
         $totalScans = $this->inventaireScans()->count();
-        
+
         if ($totalScans === 0) {
             return 0;
         }
@@ -150,6 +177,10 @@ class InventaireLocalisation extends Model
      */
     public function demarrer(): bool
     {
+        if ($this->statut !== 'en_attente') {
+            throw new InventaireWorkflowException('Seule une localisation en attente peut être démarrée.');
+        }
+
         return $this->update([
             'date_debut_scan' => now(),
             'statut' => 'en_cours',
@@ -161,34 +192,30 @@ class InventaireLocalisation extends Model
      */
     public function terminer(): bool
     {
+        if ($this->statut !== 'en_cours') {
+            throw new InventaireWorkflowException('Seule une localisation en cours peut être terminée.');
+        }
+
         return $this->update([
             'date_fin_scan' => now(),
             'statut' => 'termine',
-            'nombre_biens_scannes' => $this->inventaireScans()->count(),
         ]);
     }
 
     /**
      * Calcule et met à jour le nombre de biens attendus dans la localisation
-     * Compte via la hiérarchie : LocalisationImmo → Emplacements → Immobilisations
+     * Compte via la hiérarchie : Localisation → Sites → Immobilisations
      */
     public function calculerBiensAttendus(): int
     {
-        $localisation = $this->localisation; // LocalisationImmo
-        
-        if (!$localisation) {
+        if (! $this->localisation) {
             return 0;
         }
-        
-        // Compter les immobilisations via les emplacements
-        $nombreBiens = $localisation->emplacements()
-            ->withCount('immobilisations')
-            ->get()
-            ->sum('immobilisations_count');
-        
+
+        $nombreBiens = $this->localisation->immobilisations()->count();
+
         $this->update(['nombre_biens_attendus' => $nombreBiens]);
-        
+
         return $nombreBiens;
     }
 }
-

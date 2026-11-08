@@ -5,18 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Immos SAN') }} - Connexion</title>
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700&display=swap" rel="stylesheet" />
+    <title>Gestion des immobilisations - Connexion</title>
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     
-    <!-- Alpine.js -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="font-sans antialiased bg-gray-100">
     <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gradient-to-br from-secondary-100 via-secondary-50 to-indigo-100 relative overflow-hidden">
@@ -67,7 +61,9 @@
         }
     </style>
 
-    @livewireScripts
+    @livewireScripts(['url' => url('livewire/livewire.js')])
+    <script>
+        document.querySelector('script[data-update-uri]')?.setAttribute('data-update-uri', @js(url('livewire/update')));
+    </script>
 </body>
 </html>
-

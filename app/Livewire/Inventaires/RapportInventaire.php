@@ -3,7 +3,7 @@
 namespace App\Livewire\Inventaires;
 
 use App\Models\Inventaire;
-use App\Models\InventaireScan;
+use App\Models\InventaireExportRequest;
 use App\Services\InventaireService;
 use App\Services\RapportService;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +25,9 @@ class RapportInventaire extends Component
      * Filtres pour les tableaux
      */
     public $filterEmplacement = 'all';
+
     public $filterStatut = 'all';
+
     public $showPhotos = false;
 
     /**
@@ -33,10 +35,13 @@ class RapportInventaire extends Component
      */
     public function mount(Inventaire $inventaire): void
     {
+        abort_unless(Auth::user() && $inventaire->isAccessibleTo(Auth::user()), 403);
+
         // Vérifier que l'inventaire est terminé ou clôturé
-        if (!in_array($inventaire->statut, ['termine', 'cloture'])) {
+        if (! in_array($inventaire->statut, ['termine', 'cloture'])) {
             session()->flash('error', 'Le rapport n\'est disponible que pour les inventaires terminés ou clôturés.');
             redirect()->route('inventaires.show', $inventaire);
+
             return;
         }
 
@@ -48,7 +53,7 @@ class RapportInventaire extends Component
             'inventaireLocalisations.agent',
             'inventaireScans.bien.designation',
             'inventaireScans.bien.categorie',
-            'inventaireScans.bien.emplacement.localisation',
+            'inventaireScans.bien.site.localisation',
             'inventaireScans.localisationReelle',
             'inventaireScans.agent',
         ]);
@@ -60,73 +65,85 @@ class RapportInventaire extends Component
     public function getStatistiquesProperty(): array
     {
         $service = app(InventaireService::class);
+
         return $service->calculerStatistiques($this->inventaire);
     }
 
     /**
-     * Propriété calculée : Détail des immobilisations par emplacement
+     * Propriété calculée : Détail des immobilisations par site
      */
-    public function getDetailParEmplacementProperty(): array
+    public function getDetailParSiteProperty(): array
     {
-        return app(RapportService::class)->getDetailParEmplacement($this->inventaire);
+        return app(RapportService::class)->getDetailParSite($this->inventaire);
+    }
+
+    public function getExportsProperty()
+    {
+        return InventaireExportRequest::query()
+            ->where('inventaire_id', $this->inventaire->id)
+            ->when(! Auth::user()?->isAdmin(), fn ($query) => $query->where('requested_by', Auth::id()))
+            ->latest('id')
+            ->limit(6)
+            ->get();
     }
 
     /**
-     * Propriété calculée : Retourne les biens présents (compatible PWA: gesimmo)
+     * Propriété calculée : Retourne les biens présents
      */
     public function getBiensPresentsProperty()
     {
         $query = $this->inventaire->inventaireScans()
             ->where('statut_scan', 'present')
-            ->with(['bien.designation', 'bien.emplacement.localisation', 'agent']);
+            ->with(['bien.designation', 'bien.site.localisation', 'agent', 'inventaire.biensAttendus']);
 
         if ($this->filterEmplacement !== 'all') {
-            $query->whereHas('bien', fn ($q) => $q->where('idEmplacement', $this->filterEmplacement));
+            $query->where('site_reel_id', $this->filterEmplacement);
         }
 
         return $query->orderBy('date_scan', 'desc')->get();
     }
 
     /**
-     * Propriété calculée : Retourne les biens déplacés (compatible PWA: gesimmo)
+     * Propriété calculée : Retourne les biens déplacés
      */
     public function getBiensDeplacesProperty()
     {
         $query = $this->inventaire->inventaireScans()
             ->where('statut_scan', 'deplace')
-            ->with(['bien.emplacement.localisation', 'bien.designation', 'localisationReelle', 'agent']);
+            ->with(['bien.site.localisation', 'bien.designation', 'localisationReelle', 'agent', 'inventaire.biensAttendus']);
 
         if ($this->filterEmplacement !== 'all') {
-            $query->whereHas('bien', fn ($q) => $q->where('idEmplacement', $this->filterEmplacement));
+            $query->where('site_reel_id', $this->filterEmplacement);
         }
 
         return $query->orderBy('date_scan', 'desc')->get();
     }
 
     /**
-     * Propriété calculée : Retourne les biens absents (compatible PWA: gesimmo)
+     * Propriété calculée : Retourne les biens absents
      */
     public function getBiensAbsentsProperty()
     {
         $query = $this->inventaire->inventaireScans()
             ->where('statut_scan', 'absent')
-            ->with(['bien.emplacement.localisation', 'bien.designation', 'agent']);
+            ->with(['bien.site.localisation', 'bien.designation', 'agent', 'inventaire.biensAttendus']);
 
         if ($this->filterEmplacement !== 'all') {
-            $query->whereHas('bien', fn ($q) => $q->where('idEmplacement', $this->filterEmplacement));
+            $query->whereHas('bien', fn ($q) => $q->where('site_id', $this->filterEmplacement));
         }
 
         return $query->orderBy('date_scan', 'desc')->get();
     }
 
     /**
-     * Propriété calculée : Retourne les biens détériorés (compatible PWA: gesimmo)
+     * Propriété calculée : Retourne les biens détériorés
      */
     public function getBiensDeterioresProperty()
     {
         return $this->inventaire->inventaireScans()
-            ->where('statut_scan', 'deteriore')
-            ->with(['bien.designation', 'bien.emplacement.localisation', 'agent'])
+            ->where('etat_constate', 'defectueux')
+            ->where('statut_scan', '!=', 'absent')
+            ->with(['bien.designation', 'bien.site.localisation', 'agent', 'inventaire.biensAttendus'])
             ->orderBy('date_scan', 'desc')
             ->get();
     }
@@ -138,10 +155,10 @@ class RapportInventaire extends Component
     {
         $query = $this->inventaire->inventaireScans()
             ->where('etat_constate', 'defectueux')
-            ->with(['bien.designation', 'bien.emplacement.localisation', 'localisationReelle', 'agent']);
+            ->with(['bien.designation', 'bien.site.localisation', 'localisationReelle', 'agent', 'inventaire.biensAttendus']);
 
         if ($this->filterEmplacement !== 'all') {
-            $query->whereHas('bien', fn ($q) => $q->where('idEmplacement', $this->filterEmplacement));
+            $query->where('site_reel_id', $this->filterEmplacement);
         }
 
         return $query->orderBy('date_scan', 'desc')->get();
@@ -152,27 +169,7 @@ class RapportInventaire extends Component
      */
     public function getBiensNonScannesProperty()
     {
-        // Récupérer tous les biens attendus dans les localisations inventoriées
-        $localisationIds = $this->inventaire->inventaireLocalisations()
-            ->pluck('localisation_id')
-            ->toArray();
-
-        // Emplacements liés à ces localisations
-        $emplacementIds = \App\Models\Emplacement::whereIn('idLocalisation', $localisationIds)
-            ->pluck('idEmplacement')
-            ->toArray();
-
-        // Récupérer les NumOrdre déjà scannés
-        $biensScannesIds = $this->inventaire->inventaireScans()
-            ->pluck('bien_id')
-            ->toArray();
-
-        // Biens Gesimmo attendus mais non scannés
-        return \App\Models\Gesimmo::whereIn('idEmplacement', $emplacementIds)
-            ->whereNotIn('NumOrdre', $biensScannesIds)
-            ->with(['designation', 'categorie', 'emplacement.localisation'])
-            ->orderBy('NumOrdre')
-            ->get();
+        return app(RapportService::class)->getBiensNonScannes($this->inventaire);
     }
 
     /**
@@ -181,6 +178,7 @@ class RapportInventaire extends Component
     public function getAnomaliesProperty(): array
     {
         $service = app(InventaireService::class);
+
         return $service->detecterAnomalies($this->inventaire);
     }
 
@@ -190,30 +188,6 @@ class RapportInventaire extends Component
     public function setActiveTab($tab): void
     {
         $this->activeTab = $tab;
-    }
-
-    /**
-     * Exporte le rapport en PDF
-     * Redirection vers la route d'export (évite que Livewire tente de sérialiser le PDF en JSON)
-     */
-    public function exportPDF()
-    {
-        return redirect()->route('inventaires.export-pdf', $this->inventaire);
-    }
-
-    /**
-     * Exporte le rapport en Excel
-     */
-    public function exportExcel()
-    {
-        try {
-            $service = app(InventaireService::class);
-            $filePath = $service->genererRapportExcel($this->inventaire);
-            
-            return response()->download(storage_path('app/public/' . $filePath));
-        } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la génération de l\'Excel: ' . $e->getMessage());
-        }
     }
 
     /**
@@ -232,4 +206,3 @@ class RapportInventaire extends Component
         return view('livewire.inventaires.rapport-inventaire');
     }
 }
-

@@ -4,7 +4,7 @@
         <div class="mb-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Gestion des Rôles RBAC</h1>
+                    <h1 class="text-3xl font-bold text-gray-900">Gestion des rôles</h1>
                     <p class="text-gray-500 mt-1">Attribuer les rôles administrateur et agent aux utilisateurs</p>
                 </div>
                 <a href="{{ route('users.index') }}" 
@@ -37,14 +37,14 @@
         @endif
 
         <!-- Statistiques -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm font-medium text-gray-600">Total utilisateurs</p>
                         <p class="text-3xl font-bold text-gray-900 mt-2">{{ $stats['total'] }}</p>
                     </div>
-                    <div class="text-4xl">👥</div>
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><x-icon name="users" class="w-6 h-6" /></div>
                 </div>
             </div>
 
@@ -55,18 +55,7 @@
                         <p class="text-3xl font-bold text-purple-600 mt-2">{{ $stats['admins'] }}</p>
                         <p class="text-xs text-gray-500 mt-1">Accès complet</p>
                     </div>
-                    <div class="text-4xl">👑</div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Admin Stock</p>
-                        <p class="text-3xl font-bold text-indigo-600 mt-2">{{ $stats['admin_stocks'] }}</p>
-                        <p class="text-xs text-gray-500 mt-1">Gestion stock complète</p>
-                    </div>
-                    <div class="text-4xl">📦</div>
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600"><x-icon name="shield-check" class="w-6 h-6" /></div>
                 </div>
             </div>
 
@@ -75,9 +64,9 @@
                     <div>
                         <p class="text-sm font-medium text-gray-600">Agents</p>
                         <p class="text-3xl font-bold text-blue-600 mt-2">{{ $stats['agents'] }}</p>
-                        <p class="text-xs text-gray-500 mt-1">Inventaire + Sorties</p>
+                        <p class="text-xs text-gray-500 mt-1">Inventaires assignés</p>
                     </div>
-                    <div class="text-4xl">👤</div>
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><x-icon name="user" class="w-6 h-6" /></div>
                 </div>
             </div>
         </div>
@@ -104,7 +93,6 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                         <option value="all">Tous les rôles</option>
                         <option value="admin">Administrateurs uniquement</option>
-                        <option value="admin_stock">Admin Stock uniquement</option>
                         <option value="agent">Agents uniquement</option>
                     </select>
                 </div>
@@ -113,40 +101,24 @@
 
         <!-- Légende des permissions -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 class="text-sm font-semibold text-blue-900 mb-3">📋 Permissions par rôle</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-900"><x-icon name="information-circle" class="w-4 h-4" /> Permissions par rôle</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                    <p class="font-semibold text-purple-700 mb-2">👑 Administrateur</p>
+                    <p class="mb-2 flex items-center gap-1.5 font-semibold text-purple-700"><x-icon name="shield-check" class="w-4 h-4" /> Administrateur</p>
                     <ul class="text-gray-700 space-y-1">
-                        <li>✅ Gestion complète des immobilisations</li>
-                        <li>✅ Gestion complète du stock</li>
-                        <li>✅ Création d'entrées de stock</li>
-                        <li>✅ Création de sorties de stock</li>
-                        <li>✅ Gestion des utilisateurs</li>
-                        <li>✅ Voir tous les mouvements</li>
+                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Gestion des immobilisations, transferts et étiquettes</li>
+                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Référentiel : localisations, sites, catégories, désignations</li>
+                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Préparation, suivi et clôture des inventaires</li>
+                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Gestion des utilisateurs</li>
                     </ul>
                 </div>
                 <div>
-                    <p class="font-semibold text-indigo-700 mb-2">📦 Admin Stock</p>
+                    <p class="mb-2 flex items-center gap-1.5 font-semibold text-blue-700"><x-icon name="user" class="w-4 h-4" /> Agent</p>
                     <ul class="text-gray-700 space-y-1">
-                        <li>✅ Gestion complète du stock</li>
-                        <li>✅ Création d'entrées de stock</li>
-                        <li>✅ Création de sorties de stock</li>
-                        <li>✅ Voir tous les mouvements</li>
-                        <li>✅ Gestion magasins, catégories, etc.</li>
-                        <li>❌ Gestion des immobilisations</li>
-                        <li>❌ Gestion des utilisateurs</li>
-                    </ul>
-                </div>
-                <div>
-                    <p class="font-semibold text-blue-700 mb-2">👤 Agent</p>
-                    <ul class="text-gray-700 space-y-1">
-                        <li>✅ Exécution des inventaires</li>
-                        <li>✅ Création de sorties de stock</li>
-                        <li>✅ Voir ses propres sorties</li>
-                        <li>❌ Gestion du stock (magasins, catégories, etc.)</li>
-                        <li>❌ Création d'entrées de stock</li>
-                        <li>❌ Gestion des utilisateurs</li>
+                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Scan des sites assignés avec l'application mobile</li>
+                        <li class="flex items-center gap-2"><x-icon name="check-circle" class="w-4 h-4 text-green-600" /> Consultation des immobilisations, localisations et inventaires</li>
+                        <li class="flex items-center gap-2"><x-icon name="x-circle" class="w-4 h-4 text-red-500" /> Modification du référentiel et des immobilisations</li>
+                        <li class="flex items-center gap-2"><x-icon name="x-circle" class="w-4 h-4 text-red-500" /> Gestion des utilisateurs</li>
                     </ul>
                 </div>
             </div>
@@ -180,32 +152,26 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($user->role === 'admin')
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                                        👑 Administrateur
-                                    </span>
-                                @elseif($user->role === 'admin_stock')
-                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                        📦 Admin Stock
+                                        <x-icon name="shield-check" class="w-3.5 h-3.5 mr-1 self-center" /> Administrateur
                                     </span>
                                 @elseif($user->role === 'agent')
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                                        👤 Agent
+                                        <x-icon name="user" class="w-3.5 h-3.5 mr-1 self-center" /> Agent
                                     </span>
                                 @else
                                     <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                                        ❓ Non défini
+                                        <x-icon name="question-mark-circle" class="w-3.5 h-3.5 mr-1 self-center" /> Non défini
                                     </span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-center">
                                 <div class="text-xs text-gray-600">
                                     @if($user->role === 'admin')
-                                        <span class="text-green-600">✅ Accès complet</span>
-                                    @elseif($user->role === 'admin_stock')
-                                        <span class="text-indigo-600">✅ Gestion stock complète</span>
+                                        <span class="inline-flex items-center gap-1 text-green-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> Accès complet</span>
                                     @elseif($user->role === 'agent')
-                                        <span class="text-blue-600">✅ Inventaire + Sorties</span>
+                                        <span class="inline-flex items-center gap-1 text-blue-600"><x-icon name="check-circle" class="w-3.5 h-3.5" /> Inventaires assignés</span>
                                     @else
-                                        <span class="text-red-600">❌ Aucun accès</span>
+                                        <span class="inline-flex items-center gap-1 text-red-600"><x-icon name="x-circle" class="w-3.5 h-3.5" /> Aucun accès</span>
                                     @endif
                                 </div>
                             </td>
@@ -217,22 +183,15 @@
                                         @if($user->role !== 'admin')
                                             <button 
                                                 wire:click="confirmRoleChange({{ $user->idUser }}, '{{ $user->role }}', 'admin')"
-                                                class="text-purple-600 hover:text-purple-900 font-medium text-xs">
-                                                👑 Admin
-                                            </button>
-                                        @endif
-                                        @if($user->role !== 'admin_stock')
-                                            <button 
-                                                wire:click="confirmRoleChange({{ $user->idUser }}, '{{ $user->role }}', 'admin_stock')"
-                                                class="text-indigo-600 hover:text-indigo-900 font-medium text-xs">
-                                                📦 Admin Stock
+                                                class="inline-flex items-center gap-1 text-purple-600 hover:text-purple-900 font-medium text-xs">
+                                                <x-icon name="shield-check" class="w-3.5 h-3.5" /> Admin
                                             </button>
                                         @endif
                                         @if($user->role !== 'agent')
                                             <button 
                                                 wire:click="confirmRoleChange({{ $user->idUser }}, '{{ $user->role }}', 'agent')"
-                                                class="text-blue-600 hover:text-blue-900 font-medium text-xs">
-                                                👤 Agent
+                                                class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-900 font-medium text-xs">
+                                                <x-icon name="user" class="w-3.5 h-3.5" /> Agent
                                             </button>
                                         @endif
                                     </div>
@@ -243,7 +202,7 @@
                         <tr>
                             <td colspan="4" class="px-6 py-12 text-center">
                                 <div class="flex flex-col items-center justify-center">
-                                    <span class="text-6xl mb-3">👥</span>
+                                    <x-icon name="users" class="w-12 h-12 mb-3 text-gray-300" />
                                     <p class="text-sm font-medium text-gray-500">Aucun utilisateur trouvé</p>
                                     @if($search || $filterRole !== 'all')
                                         <p class="text-xs text-gray-400 mt-1">Essayez de modifier vos filtres</p>
@@ -285,8 +244,6 @@
                                             <strong class="text-indigo-600">
                                                 @if($newRole === 'admin')
                                                     Administrateur
-                                                @elseif($newRole === 'admin_stock')
-                                                    Admin Stock
                                                 @else
                                                     Agent
                                                 @endif
@@ -294,7 +251,7 @@
                                         </p>
                                         <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                             <p class="text-xs text-yellow-800">
-                                                <strong>⚠️ Attention :</strong> Ce changement affectera immédiatement les permissions de l'utilisateur.
+                                                <strong class="inline-flex items-center gap-1"><x-icon name="exclamation" class="w-3.5 h-3.5" /> Attention :</strong> Ce changement affectera immédiatement les permissions de l'utilisateur.
                                             </p>
                                         </div>
                                     </div>

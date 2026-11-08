@@ -3,8 +3,8 @@
 namespace App\Livewire\Biens;
 
 use App\Models\HistoriqueTransfert;
-use Livewire\Component;
 use Livewire\Attributes\Layout;
+use Livewire\Component;
 use Livewire\WithPagination;
 
 #[Layout('components.layouts.app')]
@@ -13,8 +13,11 @@ class HistoriqueTransferts extends Component
     use WithPagination;
 
     public $search = '';
+
     public $filterGroupe = '';
+
     public $filterDateDebut = '';
+
     public $filterDateFin = '';
 
     /**
@@ -23,7 +26,7 @@ class HistoriqueTransferts extends Component
     public function mount()
     {
         $user = auth()->user();
-        if (!$user || !$user->canManageInventaire()) {
+        if (! $user || ! $user->isAdmin()) {
             abort(403, 'Accès non autorisé.');
         }
     }
@@ -45,33 +48,33 @@ class HistoriqueTransferts extends Component
         $query = HistoriqueTransfert::with([
             'immobilisation.designation',
             'utilisateur',
-            'ancienEmplacement',
-            'nouveauEmplacement'
+            'ancienSite',
+            'nouveauSite',
         ])
-        ->orderBy('date_transfert', 'desc')
-        ->orderBy('groupe_transfert_id', 'desc');
+            ->orderBy('date_transfert', 'desc')
+            ->orderBy('groupe_transfert_id', 'desc');
 
-        // Recherche par NumOrdre ou libellés
-        if (!empty($this->search)) {
+        // Recherche par identifiant d'immobilisation ou libellés
+        if (! empty($this->search)) {
             $search = trim($this->search);
             $query->where(function ($q) use ($search) {
-                $q->where('NumOrdre', 'like', '%' . $search . '%')
-                    ->orWhere('ancien_emplacement_libelle', 'like', '%' . $search . '%')
-                    ->orWhere('nouveau_emplacement_libelle', 'like', '%' . $search . '%')
-                    ->orWhere('raison', 'like', '%' . $search . '%');
+                $q->where('immobilisation_id', 'like', '%'.preg_replace('/^GS/i', '', $search).'%')
+                    ->orWhere('ancien_site_libelle', 'like', '%'.$search.'%')
+                    ->orWhere('nouveau_site_libelle', 'like', '%'.$search.'%')
+                    ->orWhere('raison', 'like', '%'.$search.'%');
             });
         }
 
         // Filtre par groupe
-        if (!empty($this->filterGroupe)) {
+        if (! empty($this->filterGroupe)) {
             $query->where('groupe_transfert_id', $this->filterGroupe);
         }
 
         // Filtre par date
-        if (!empty($this->filterDateDebut)) {
+        if (! empty($this->filterDateDebut)) {
             $query->whereDate('date_transfert', '>=', $this->filterDateDebut);
         }
-        if (!empty($this->filterDateFin)) {
+        if (! empty($this->filterDateFin)) {
             $query->whereDate('date_transfert', '<=', $this->filterDateFin);
         }
 

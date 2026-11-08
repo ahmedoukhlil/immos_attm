@@ -2,214 +2,124 @@
 
 namespace App\Livewire\Localisations;
 
-use App\Models\LocalisationImmo;
+use App\Livewire\Traits\WithCachedOptions;
+use App\Models\Localisation;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 #[Layout('components.layouts.app')]
-
 class FormLocalisation extends Component
 {
-    /**
-     * Instance de la localisation (null si création)
-     */
-    public $localisation = null;
+    use WithCachedOptions;
 
     /**
-     * ID de la localisation pour l'édition
+     * Localisation en cours d'édition (null si création)
      */
+    public ?Localisation $localisationModel = null;
+
+    #[Locked]
     public $localisationId = null;
 
-    /**
-     * Propriétés du formulaire
-     */
-    public $Localisation = '';
-    public $CodeLocalisation = '';
+    public $localisation = '';
 
-    /**
-     * Initialisation du composant
-     * 
-     * @param LocalisationImmo|int|string|null $localisation Instance de la localisation pour l'édition, ID, ou null pour la création
-     */
-    public function mount($localisation = null): void
+    public $code = '';
+
+    public function mount(?Localisation $localisation = null): void
     {
-        if ($localisation) {
-            // Si c'est un ID (string ou int) et pas une instance de LocalisationImmo, charger la localisation
-            if (!($localisation instanceof LocalisationImmo)) {
-                if (is_numeric($localisation) || (is_string($localisation) && ctype_digit($localisation))) {
-                    try {
-                        $localisation = LocalisationImmo::findOrFail($localisation);
-                    } catch (\Exception $e) {
-                        Log::warning('Localisation introuvable pour édition:', ['id' => $localisation]);
-                        // Si la localisation n'existe pas, traiter comme création
-                        $localisation = null;
-                    }
-                } else {
-                    // Si ce n'est ni un ID ni une instance, traiter comme création
-                    $localisation = null;
-                }
-            }
-            
-            // Si on a une instance valide de LocalisationImmo
-            if ($localisation instanceof LocalisationImmo) {
-                // Mode édition : charger les valeurs de la localisation
-                $this->localisation = $localisation;
-                $this->localisationId = $localisation->idLocalisation;
-                $this->Localisation = $localisation->Localisation;
-                $this->CodeLocalisation = $localisation->CodeLocalisation ?? '';
-            }
+        if ($localisation?->exists) {
+            $this->localisationModel = $localisation;
+            $this->localisationId = $localisation->id;
+            $this->localisation = $localisation->localisation;
+            $this->code = $localisation->code ?? '';
         }
     }
 
     /**
-     * Génère une suggestion de code automatiquement
+     * Génère une suggestion de code à partir du nom
      */
-    public function generateCodeSuggestion()
+    public function generateCodeSuggestion(): void
     {
-        // Compter les localisations existantes pour générer un numéro unique
-        $count = LocalisationImmo::count() + 1;
-        
-        // Générer un code basé sur le nom de la localisation
-        $prefix = 'LOC';
-        if (!empty($this->Localisation)) {
-            // Extraire les premières lettres du nom
-            $words = explode(' ', $this->Localisation);
-            $initials = '';
-            foreach ($words as $word) {
-                if (!empty($word)) {
-                    $initials .= strtoupper(substr($word, 0, 1));
-                }
-            }
-            if (strlen($initials) > 0) {
-                $prefix = substr($initials, 0, 3);
-            }
+        $base = mb_strtoupper(mb_substr(preg_replace('/[^A-Za-z]/', '', Str::ascii((string) $this->localisation)), 0, 5)) ?: 'LOC';
+        $code = $base;
+
+        for ($suffixe = 2; Localisation::where('code', $code)->whereKeyNot($this->localisationId)->exists(); $suffixe++) {
+            $code = $base.$suffixe;
         }
-        
-        $this->CodeLocalisation = $prefix . '-' . str_pad($count, 3, '0', STR_PAD_LEFT);
+
+        $this->code = $code;
     }
 
-
-    /**
-     * Propriété calculée : Vérifie si on est en mode édition
-     */
     public function getIsEditProperty(): bool
     {
-        return $this->localisation !== null;
+        return $this->localisationModel !== null;
     }
 
-    /**
-     * Règles de validation
-     */
     protected function rules(): array
     {
         return [
-            'Localisation' => 'required|string|max:255',
-            'CodeLocalisation' => 'nullable|string|max:255',
+            'localisation' => 'required|string|max:150',
+            'code' => ['nullable', 'string', 'max:30', Rule::unique('localisations', 'code')->ignore($this->localisationId)],
         ];
     }
 
-    /**
-     * Messages de validation personnalisés
-     */
     protected function messages(): array
     {
         return [
-            'Localisation.required' => 'La localisation est obligatoire.',
-            'Localisation.max' => 'La localisation ne peut pas dépasser 255 caractères.',
-            'CodeLocalisation.max' => 'Le code de localisation ne peut pas dépasser 255 caractères.',
+            'localisation.required' => 'La localisation est obligatoire.',
+            'localisation.max' => 'La localisation ne peut pas dépasser 150 caractères.',
+            'code.max' => 'Le code ne peut pas dépasser 30 caractères.',
+            'code.unique' => 'Ce code est déjà utilisé.',
         ];
     }
 
-
-    /**
-     * Sauvegarde la localisation (création ou édition)
-     */
     public function save()
     {
-        // Normaliser les valeurs vides avant validation
-        $this->Localisation = trim($this->Localisation ?? '');
-        $this->CodeLocalisation = trim($this->CodeLocalisation ?? '') ?: null;
+        abort_unless(auth()->user()?->isAdmin(), 403);
 
-        // Valider les données
+        $this->localisation = trim((string) $this->localisation);
+        $this->code = trim((string) $this->code);
+
+        $validated = $this->validate();
+        $data = [
+            'localisation' => $validated['localisation'],
+            'code' => $validated['code'] ?: null,
+        ];
+
         try {
-            $validated = $this->validate();
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Les erreurs de validation sont automatiquement affichées par Livewire
-            throw $e;
-        }
-
-        try {
-            // Préparer les données pour l'insertion
-            $data = [
-                'Localisation' => trim($validated['Localisation']),
-                'CodeLocalisation' => $validated['CodeLocalisation'] ?? null,
-            ];
-
-            if ($this->isEdit && $this->localisation) {
-                // Mode édition : mettre à jour la localisation existante
-                $this->localisation->update($data);
-                $localisation = $this->localisation->fresh();
+            if ($this->isEdit) {
+                $this->localisationModel->update($data);
                 $message = 'Localisation modifiée avec succès';
             } else {
-                // Mode création : créer une nouvelle localisation
-                try {
-                    DB::beginTransaction();
-                    $localisation = LocalisationImmo::create($data);
-                    DB::commit();
-                    
-                    // Vérifier que la création a réussi
-                    if (!$localisation || !$localisation->idLocalisation) {
-                        throw new \Exception('Échec de la création de la localisation - aucun ID retourné');
-                    }
-                    
-                    $message = 'Localisation créée avec succès';
-                } catch (\Illuminate\Database\QueryException $e) {
-                    DB::rollBack();
-                    Log::error('Erreur SQL lors de la création de localisation', [
-                        'message' => $e->getMessage(),
-                        'Localisation' => $data['Localisation'] ?? 'N/A'
-                    ]);
-                    throw new \Exception('Erreur lors de l\'insertion en base de données : ' . $e->getMessage());
-                }
+                Localisation::create($data);
+                $message = 'Localisation créée avec succès';
             }
-
-            // Invalider le cache des statistiques
-            \Illuminate\Support\Facades\Cache::forget('localisations_total_count');
-            \Illuminate\Support\Facades\Cache::forget('emplacements_total_count');
-
-            session()->flash('success', $message);
-
-            // Rediriger vers la liste des localisations
-            return $this->redirect(route('localisations.index'), navigate: true);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            throw $e;
         } catch (\Exception $e) {
-            Log::error('Erreur sauvegarde localisation', [
-                'message' => $e->getMessage(),
-                'Localisation' => $this->Localisation ?? 'N/A'
-            ]);
-            session()->flash('error', 'Une erreur est survenue lors de la sauvegarde : ' . $e->getMessage());
+            Log::error('Erreur sauvegarde localisation', ['localisation' => $this->localisation]);
+            report($e);
+            session()->flash('error', 'Une erreur est survenue lors de la sauvegarde.');
+
             return;
         }
+
+        $this->invalidateLocalisationCache();
+        Cache::forget('localisations_total_count');
+        session()->flash('success', $message);
+
+        return $this->redirect(route('localisations.index'), navigate: true);
     }
 
-    /**
-     * Annule et redirige vers la liste
-     */
     public function cancel()
     {
-        return redirect()->route('localisations.index');
+        return $this->redirect(route('localisations.index'), navigate: true);
     }
 
-
-    /**
-     * Rendu du composant
-     */
     public function render()
     {
         return view('livewire.localisations.form-localisation');
     }
 }
-

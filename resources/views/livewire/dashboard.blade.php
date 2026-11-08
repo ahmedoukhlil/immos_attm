@@ -44,9 +44,9 @@
                         +{{ $biensCetteAnnee }} cette année
                     </p>
                 </div>
-                <div class="text-4xl">📦</div>
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><x-icon name="cube" class="w-6 h-6" /></div>
             </div>
-            <a href="{{ route('biens.index') }}" class="text-sm text-blue-600 hover:text-blue-800 mt-4 inline-block">
+            <a href="{{ route('biens.index') }}" wire:navigate class="text-sm text-blue-600 hover:text-blue-800 mt-4 inline-block">
                 Voir toutes les immobilisations →
             </a>
         </div>
@@ -57,11 +57,13 @@
                 <div>
                     <p class="text-sm font-medium text-gray-600">Localisations</p>
                     <p class="text-3xl font-bold text-gray-900 mt-2">{{ number_format($totalLocalisations, 0, ',', ' ') }}</p>
-                    <p class="text-sm text-gray-500 mt-2">{{ $nombreBatiments }} bâtiments</p>
+                    <p class="text-sm text-gray-500 mt-2">
+                        {{ $nombreEmplacements }} {{ $nombreEmplacements === 1 ? 'site' : 'sites' }}
+                    </p>
                 </div>
-                <div class="text-4xl">📍</div>
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600"><x-icon name="location-marker" class="w-6 h-6" /></div>
             </div>
-            <a href="{{ route('localisations.index') }}" class="text-sm text-blue-600 hover:text-blue-800 mt-4 inline-block">
+            <a href="{{ route('localisations.index') }}" wire:navigate class="text-sm text-blue-600 hover:text-blue-800 mt-4 inline-block">
                 Gérer les localisations →
             </a>
         </div>
@@ -70,7 +72,7 @@
         <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
             <div class="flex items-center justify-between">
                 <div class="flex-1">
-                    <p class="text-sm font-medium text-gray-600">Dernier inventaire</p>
+                    <p class="text-sm font-medium text-gray-600">Inventaire suivi</p>
                     @if($inventaireEnCours)
                         <p class="text-lg font-bold text-gray-900 mt-2">Inventaire {{ $inventaireEnCours->annee }}</p>
                         <div class="mt-2 mb-2">
@@ -101,26 +103,28 @@
                         <p class="text-lg font-bold text-gray-400 mt-2">Aucun inventaire</p>
                     @endif
                 </div>
-                <div class="text-4xl">📋</div>
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-600"><x-icon name="clipboard-list" class="w-6 h-6" /></div>
             </div>
             @if($inventaireEnCours)
-                <a href="{{ route('inventaires.show', $inventaireEnCours->id) }}" class="text-sm text-blue-600 hover:text-blue-800 mt-4 inline-block">
+                <a href="{{ route('inventaires.show', $inventaireEnCours->id) }}" wire:navigate class="text-sm text-blue-600 hover:text-blue-800 mt-4 inline-block">
                     Voir l'inventaire →
                 </a>
             @endif
         </div>
 
-        <!-- Card 4 - Valeur totale -->
+        <!-- Card 4 - Biens en mauvais état ou hors service -->
         <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
             <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600">Valeur totale</p>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">
-                        {{ number_format($valeurTotale, 0, ',', ' ') }} MRU
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-gray-600">À réformer</p>
+                    <p class="mt-2 break-words text-2xl font-bold leading-tight text-gray-900 xl:text-3xl">
+                        {{ number_format($biensAReformer, 0, ',', ' ') }}
                     </p>
-                    <p class="text-sm text-gray-500 mt-2">Valeur déclarée</p>
+                    <p class="text-sm text-gray-500 mt-2">Biens mauvais ou hors service</p>
                 </div>
-                <div class="text-4xl">💰</div>
+                <div class="ml-3 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
             </div>
         </div>
     </div>
@@ -151,7 +155,7 @@
                         @endif
                     </div>
                 </div>
-                <a href="{{ route('inventaires.show', $inventaireEnCours->id) }}" 
+                <a href="{{ route('inventaires.show', $inventaireEnCours->id) }}" wire:navigate
                    class="text-sm text-blue-600 hover:text-blue-800 font-medium">
                     Voir détails complets →
                 </a>
@@ -168,7 +172,7 @@
                                     {{ $statistiquesInventaire['localisations_terminees'] ?? 0 }}<span class="text-lg text-blue-600">/{{ $statistiquesInventaire['total_localisations'] ?? 0 }}</span>
                                 </p>
                             </div>
-                            <div class="text-2xl">📍</div>
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/70 text-blue-600"><x-icon name="location-marker" class="w-5 h-5" /></div>
                         </div>
                     </div>
 
@@ -180,7 +184,7 @@
                                     {{ number_format($statistiquesInventaire['total_scans'] ?? 0, 0, ',', ' ') }}
                                 </p>
                             </div>
-                            <div class="text-2xl">✅</div>
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/70 text-green-600"><x-icon name="check-circle" class="w-5 h-5" /></div>
                         </div>
                     </div>
 
@@ -192,7 +196,7 @@
                                     {{ round($statistiquesInventaire['progression'] ?? 0, 1) }}%
                                 </p>
                             </div>
-                            <div class="text-2xl">📊</div>
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/70 text-purple-600"><x-icon name="chart-bar" class="w-5 h-5" /></div>
                         </div>
                     </div>
 
@@ -204,7 +208,7 @@
                                     {{ round($statistiquesInventaire['taux_conformite'] ?? 0, 1) }}%
                                 </p>
                             </div>
-                            <div class="text-2xl">🎯</div>
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/70 text-amber-600"><x-icon name="chart-pie" class="w-5 h-5" /></div>
                         </div>
                     </div>
                 </div>
@@ -258,11 +262,11 @@
                                            ($loc['statut'] === 'en_cours' ? 'bg-blue-100 text-blue-800' : 
                                            ($loc['statut'] === 'en_attente' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')) }}">
                                         @if($loc['statut'] === 'en_attente')
-                                            ⏳ En attente
+                                            <x-icon name="clock" class="inline-block w-3.5 h-3.5 mr-0.5 align-[-2px]" /> En attente
                                         @elseif($loc['statut'] === 'en_cours')
-                                            🔄 En cours
+                                            <x-icon name="lightning-bolt" class="inline-block w-3.5 h-3.5 mr-0.5 align-[-2px]" /> En cours
                                         @elseif($loc['statut'] === 'termine')
-                                            ✅ Terminé
+                                            <x-icon name="check-circle" class="inline-block w-3.5 h-3.5 mr-0.5 align-[-2px]" /> Terminé
                                         @else
                                             {{ ucfirst(str_replace('_', ' ', $loc['statut'])) }}
                                         @endif
@@ -301,37 +305,83 @@
             <!-- Graphiques -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" 
                  @if($inventaireEnCours && in_array($inventaireEnCours->statut, ['en_preparation', 'en_cours'])) wire:poll.10s="refresh" @endif>
+                <script type="application/json" id="dashboard-statuts-data">@json($repartitionStatuts)</script>
                 <!-- Graphique 1 - Pie chart statuts -->
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-4">Répartition des statuts</h4>
-                    <canvas id="statutsChart" height="250"></canvas>
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="mb-4 flex items-center justify-between gap-3">
+                        <h4 class="text-sm font-semibold text-gray-800">Répartition des statuts</h4>
+                        <span class="text-xs text-gray-500">{{ array_sum($repartitionStatuts) }} bien(s) traité(s)</span>
+                    </div>
+                    @if(array_sum($repartitionStatuts) > 0)
+                        <div class="relative h-56 max-h-56">
+                            <canvas id="statutsChart"></canvas>
+                        </div>
+                    @else
+                        <div class="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-4 text-center">
+                            <svg class="mb-2 h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-5m3 5V7m5 13H4a1 1 0 01-1-1V5a1 1 0 011-1h16a1 1 0 011 1v14a1 1 0 01-1 1z" />
+                            </svg>
+                            <p class="text-sm font-medium text-gray-600">Aucun bien traité</p>
+                            <p class="mt-1 text-xs text-gray-400">La répartition apparaîtra après les premiers scans.</p>
+                        </div>
+                    @endif
                 </div>
 
-                <!-- Graphique 2 - Bar chart progression par service -->
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-4">Progression par service</h4>
-                    <canvas id="servicesChart" height="250"></canvas>
+                <!-- Progression compacte par localisation -->
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="mb-4 flex items-center justify-between gap-3">
+                        <h4 class="text-sm font-semibold text-gray-800">Progression par localisation</h4>
+                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-gray-500 ring-1 ring-gray-200">
+                            {{ count($progressionParService) }} localisation(s)
+                        </span>
+                    </div>
+
+                    <div class="max-h-56 space-y-3 overflow-y-auto pr-1">
+                        @forelse($progressionParService as $progression)
+                            @php($pourcentage = min(max((float) ($progression['progression'] ?? 0), 0), 100))
+                            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                <div class="mb-2 flex items-center justify-between gap-4">
+                                    <span class="truncate text-sm font-medium text-gray-700" title="{{ $progression['service'] }}">
+                                        {{ $progression['service'] }}
+                                    </span>
+                                    <span class="flex-shrink-0 text-sm font-semibold {{ $pourcentage >= 100 ? 'text-green-600' : ($pourcentage > 0 ? 'text-indigo-600' : 'text-gray-400') }}">
+                                        {{ round($pourcentage, 1) }}%
+                                    </span>
+                                </div>
+                                <div class="h-2 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-valuenow="{{ $pourcentage }}" aria-valuemin="0" aria-valuemax="100" aria-label="Progression de {{ $progression['service'] }}">
+                                    <div
+                                        class="h-full rounded-full transition-all duration-500 {{ $pourcentage >= 100 ? 'bg-green-500' : ($pourcentage > 0 ? 'bg-indigo-500' : 'bg-gray-300') }}"
+                                        style="width: {{ $pourcentage }}%"></div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white px-4 text-center">
+                                <p class="text-sm font-medium text-gray-600">Aucune localisation assignée</p>
+                                <p class="mt-1 text-xs text-gray-400">La progression sera affichée après l’affectation.</p>
+                            </div>
+                        @endforelse
+                    </div>
                 </div>
             </div>
         </div>
     @endif
 
-    <!-- Section Emplacements inventoriés -->
+    <!-- Section Sites inventoriés -->
     @if($inventaireEnCours && !empty($emplacementsInventories))
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                        <span class="text-2xl mr-2">🏢</span>
-                        Emplacements inventoriés
+                        <x-icon name="office-building" class="w-6 h-6 mr-2 text-indigo-600" />
+                        Sites inventoriés
                     </h3>
                     <p class="text-sm text-gray-500 mt-1">
-                        {{ count($emplacementsInventories) }} emplacement(s) avec des biens scannés
+                        {{ count($emplacementsInventories) }} site(s) du référentiel suivi
                     </p>
                 </div>
-                <a href="{{ route('emplacements.index') }}" 
+                <a href="{{ route('sites.index') }}" wire:navigate
                    class="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Voir tous les emplacements →
+                    Voir tous les sites →
                 </a>
             </div>
 
@@ -339,52 +389,52 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Emplacement</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Localisation</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Affectation</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Responsable</th>
                             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Biens scannés</th>
                             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total biens</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($emplacementsInventories as $emplacement)
+                        @foreach($emplacementsInventories as $site)
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-6 py-4">
                                     <div class="text-sm font-medium text-gray-900">
-                                        {{ $emplacement['nom'] }}
+                                        {{ $site['nom'] }}
                                     </div>
-                                    @if(!empty($emplacement['code']))
-                                        <div class="text-xs text-gray-500">{{ $emplacement['code'] }}</div>
+                                    @if(!empty($site['code']))
+                                        <div class="text-xs text-gray-500">{{ $site['code'] }}</div>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
-                                    {{ $emplacement['localisation'] }}
+                                    {{ $site['localisation'] }}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
-                                    {{ $emplacement['affectation'] }}
+                                    {{ $site['responsable'] }}
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <span class="px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-800 rounded-full">
-                                        {{ number_format($emplacement['biens_scannes'], 0, ',', ' ') }}
+                                        {{ number_format($site['biens_scannes'], 0, ',', ' ') }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-center text-sm text-gray-700 font-medium">
-                                    {{ number_format($emplacement['total_biens'], 0, ',', ' ') }}
+                                    {{ number_format($site['total_biens'], 0, ',', ' ') }}
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex items-center">
                                         <div class="w-24 bg-gray-200 rounded-full h-2.5 mr-3">
                                             <div class="h-2.5 rounded-full transition-all duration-300
-                                                {{ $emplacement['progression'] >= 100 ? 'bg-green-600' : 
-                                                   ($emplacement['progression'] >= 50 ? 'bg-blue-600' : 
-                                                   ($emplacement['progression'] > 0 ? 'bg-yellow-500' : 'bg-gray-400')) }}" 
-                                                style="width: {{ min($emplacement['progression'], 100) }}%"></div>
+                                                {{ $site['progression'] >= 100 ? 'bg-green-600' : 
+                                                   ($site['progression'] >= 50 ? 'bg-blue-600' : 
+                                                   ($site['progression'] > 0 ? 'bg-yellow-500' : 'bg-gray-400')) }}" 
+                                                style="width: {{ min($site['progression'], 100) }}%"></div>
                                         </div>
                                         <span class="text-sm font-medium
-                                            {{ $emplacement['progression'] >= 100 ? 'text-green-600' : 
-                                               ($emplacement['progression'] > 0 ? 'text-gray-700' : 'text-gray-400') }}">
-                                            {{ round($emplacement['progression'], 1) }}%
+                                            {{ $site['progression'] >= 100 ? 'text-green-600' : 
+                                               ($site['progression'] > 0 ? 'text-gray-700' : 'text-gray-400') }}">
+                                            {{ round($site['progression'], 1) }}%
                                         </span>
                                     </div>
                                 </td>
@@ -402,7 +452,7 @@
         <div class="space-y-4">
             @forelse($dernieresActions as $action)
                 <div class="flex items-start space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                    <div class="text-2xl">{{ $action['icon'] }}</div>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><x-icon :name="$action['icon']" class="w-5 h-5" /></div>
                     <div class="flex-1">
                         <p class="text-sm text-gray-900">{{ $action['message'] }}</p>
                         <p class="text-xs text-gray-500 mt-1">{{ $action['time_ago'] }}</p>
@@ -419,24 +469,24 @@
         <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-6">Actions rapides</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <a href="{{ route('biens.create') }}" 
+                <a href="{{ route('biens.create') }}" wire:navigate
                    class="flex items-center justify-center px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors">
-                    <span class="text-2xl mr-2">➕</span>
+                    <x-icon name="plus" class="w-5 h-5 mr-2" />
                     <span class="font-medium">Ajouter une immobilisation</span>
                 </a>
-                <a href="{{ route('localisations.create') }}" 
+                <a href="{{ route('localisations.create') }}" wire:navigate
                    class="flex items-center justify-center px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors">
-                    <span class="text-2xl mr-2">📍</span>
+                    <x-icon name="location-marker" class="w-5 h-5 mr-2" />
                     <span class="font-medium">Ajouter une localisation</span>
                 </a>
-                <a href="{{ route('inventaires.create') }}" 
+                <a href="{{ route('inventaires.create') }}" wire:navigate
                    class="flex items-center justify-center px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors">
-                    <span class="text-2xl mr-2">📋</span>
+                    <x-icon name="clipboard-list" class="w-5 h-5 mr-2" />
                     <span class="font-medium">Démarrer inventaire</span>
                 </a>
-                <a href="{{ route('users.index') }}" 
+                <a href="{{ route('users.index') }}" wire:navigate
                    class="flex items-center justify-center px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors">
-                    <span class="text-2xl mr-2">👥</span>
+                    <x-icon name="users" class="w-5 h-5 mr-2" />
                     <span class="font-medium">Gérer les utilisateurs</span>
                 </a>
             </div>
@@ -444,25 +494,27 @@
     @endif
 
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
+    @vite('resources/js/chart.js')
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            @php
-                $hasInventaire = $inventaireEnCours && !empty($repartitionStatuts);
-            @endphp
-            @if($hasInventaire)
-            // Graphique Pie - Répartition statuts
-            var statutsCtx = document.getElementById('statutsChart');
-            if (statutsCtx) {
-                var repartitionData = {
-                    present: {{ $repartitionStatuts['present'] ?? 0 }},
-                    deplace: {{ $repartitionStatuts['deplace'] ?? 0 }},
-                    absent: {{ $repartitionStatuts['absent'] ?? 0 }},
-                    deteriore: {{ $repartitionStatuts['deteriore'] ?? 0 }}
-                };
-                
-                new Chart(statutsCtx, {
+        (() => {
+            window.dashboardCharts ??= { statuts: null };
+
+            const readData = (id, fallback) => {
+                const element = document.getElementById(id);
+                if (!element) return fallback;
+                try { return JSON.parse(element.textContent); } catch (_) { return fallback; }
+            };
+
+            const initDashboardCharts = () => {
+                window.dashboardCharts.statuts?.destroy();
+                window.dashboardCharts.localisations?.destroy();
+                window.dashboardCharts = { statuts: null };
+
+                const statutsCtx = document.getElementById('statutsChart');
+                const repartitionData = readData('dashboard-statuts-data', {});
+                if (statutsCtx && Object.keys(repartitionData).length > 0) {
+                    window.dashboardCharts.statuts = new Chart(statutsCtx, {
                     type: 'pie',
                     data: {
                         labels: ['Présents', 'Déplacés', 'Absents', 'Détériorés'],
@@ -497,58 +549,21 @@
                             }
                         }
                     }
-                });
-            }
-
-            // Graphique Bar - Progression par service
-            var servicesCtx = document.getElementById('servicesChart');
-            if (servicesCtx) {
-                @php
-                    $progressionData = $progressionParService ?? [];
-                @endphp
-                var progressionData = @json($progressionData);
-                if (progressionData && progressionData.length > 0) {
-                    new Chart(servicesCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: progressionData.map(function(item) { return item.service; }),
-                            datasets: [{
-                                label: 'Progression (%)',
-                                data: progressionData.map(function(item) { return item.progression; }),
-                                backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                                borderColor: 'rgb(59, 130, 246)',
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    ticks: {
-                                        callback: function(value) {
-                                            return value + '%';
-                                        }
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
-                            }
-                        }
                     });
                 }
-            }
-            @endif
-        });
 
-        // Réinitialiser les graphiques lors des mises à jour Livewire
-        document.addEventListener('livewire:update', function() {
-            // Les graphiques seront recréés automatiquement
-        });
+            };
+
+            document.addEventListener('DOMContentLoaded', initDashboardCharts);
+            document.addEventListener('livewire:navigated', initDashboardCharts);
+            const registerDashboardListener = () => {
+                Livewire.on('dashboard-updated', () => setTimeout(initDashboardCharts, 100));
+            };
+            if (typeof Livewire !== 'undefined') {
+                registerDashboardListener();
+            } else {
+                document.addEventListener('livewire:init', registerDashboardListener, { once: true });
+            }
+        })();
     </script>
 </div>

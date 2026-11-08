@@ -8,7 +8,7 @@
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
                         </svg>
-                        Dashboard
+                        Tableau de bord
                     </a>
                 </li>
                 <li>
@@ -79,26 +79,26 @@
 
                     {{-- Catégorie --}}
                     <div>
-                        <label for="idCat" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="categorie_id" class="block text-sm font-medium text-gray-700 mb-1">
                             Catégorie <span class="text-red-500">*</span>
                         </label>
                         <livewire:components.searchable-select
-                            wire:model="idCat"
+                            wire:model="categorie_id"
                             :options="$this->categorieOptions"
                             placeholder="Sélectionner une catégorie"
                             search-placeholder="Rechercher une catégorie..."
                             no-results-text="Aucune catégorie trouvée"
                             :allow-clear="true"
-                            name="idCat"
+                            name="categorie_id"
                         />
-                        @error('idCat')
+                        @error('categorie_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     {{-- Code Désignation --}}
                     <div>
-                        <label for="CodeDesignation" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="code" class="block text-sm font-medium text-gray-700 mb-1">
                             Code de désignation
                         </label>
                         <div class="flex gap-2">
@@ -110,10 +110,10 @@
                                 </div>
                                 <input 
                                     type="text"
-                                    id="CodeDesignation"
-                                    wire:model="CodeDesignation"
+                                    id="code"
+                                    wire:model="code"
                                     placeholder="Ex: BUR, CHA, TAB"
-                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('CodeDesignation') border-red-300 @enderror"
+                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('code') border-red-300 @enderror"
                                     wire:loading.attr="disabled">
                             </div>
                             <button 
@@ -124,7 +124,7 @@
                                 Auto
                             </button>
                         </div>
-                        @error('CodeDesignation')
+                        @error('code')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-xs text-gray-500">
@@ -132,6 +132,63 @@
                         </p>
                     </div>
                 </div>
+            </div>
+
+            <div class="border-t border-gray-200 pt-6">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Composition du matériel</h2>
+                        <p class="text-sm text-gray-500">Chaque composant configuré produira sa propre étiquette.</p>
+                    </div>
+                    <label class="inline-flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <input type="checkbox" wire:model.live="estCompose" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-sm font-medium text-gray-800">Matériel composé</span>
+                    </label>
+                </div>
+
+                @if($estCompose)
+                    <div class="mt-5 space-y-3">
+                        @foreach($composants as $index => $composant)
+                            <div wire:key="composant-{{ $index }}" class="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 md:grid-cols-12 md:items-end">
+                                <div class="md:col-span-4">
+                                    <label for="composant-nom-{{ $index }}" class="mb-1 block text-xs font-medium text-gray-700">Nom</label>
+                                    <input id="composant-nom-{{ $index }}" type="text" wire:model="composants.{{ $index }}.nom" placeholder="Ex. Écran" class="block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error("composants.$index.nom") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="composant-code-{{ $index }}" class="mb-1 block text-xs font-medium text-gray-700">Code</label>
+                                    <input id="composant-code-{{ $index }}" type="text" wire:model="composants.{{ $index }}.code" placeholder="E" maxlength="20" class="block w-full rounded-lg border-gray-300 text-sm uppercase focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error("composants.$index.code") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="composant-quantite-{{ $index }}" class="mb-1 block text-xs font-medium text-gray-700">Étiquettes</label>
+                                    <input id="composant-quantite-{{ $index }}" type="number" min="1" max="20" wire:model="composants.{{ $index }}.quantite" class="block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    @error("composants.$index.quantite") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="md:col-span-3">
+                                    <label class="inline-flex min-h-10 items-center gap-2">
+                                        <input type="checkbox" wire:model="composants.{{ $index }}.obligatoire" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        <span class="text-sm text-gray-700">Obligatoire</span>
+                                    </label>
+                                </div>
+                                <div class="md:col-span-1 md:text-right">
+                                    <button type="button" wire:click="retirerComposant({{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg text-red-600 hover:bg-red-50" aria-label="Supprimer le composant {{ $index + 1 }}">
+                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        @endforeach
+
+                        @error('composants') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
+                        <button type="button" wire:click="ajouterComposant" class="inline-flex items-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                            <span class="mr-2 text-lg leading-none">+</span> Ajouter un composant
+                        </button>
+                    </div>
+                @else
+                    <div class="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+                        Ce matériel générera une seule étiquette principale.
+                    </div>
+                @endif
             </div>
         </div>
 

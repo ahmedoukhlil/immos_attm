@@ -19,9 +19,15 @@
         {{-- INDICATEUR D'ÉTAPES                        --}}
         {{-- ========================================== --}}
         <div class="mb-8">
-            <div class="flex items-center">
+            <div class="grid grid-cols-3 gap-2" aria-label="Progression de la création de l’inventaire">
                 {{-- Étape 1 --}}
-                <div class="flex items-center gap-3 cursor-pointer" @click="if(etape > 1) $wire.set('etapeActuelle', 1)">
+                <button
+                    type="button"
+                    class="flex min-w-0 flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition-colors sm:flex-row sm:text-left"
+                    :class="etape > 1 ? 'hover:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' : ''"
+                    @click="if(etape > 1) $wire.set('etapeActuelle', 1)"
+                    :disabled="etape <= 1"
+                    @if($etapeActuelle === 1) aria-current="step" @endif>
                     <div class="w-9 h-9 rounded-full flex items-center justify-center transition-colors
                         {{ $etapeActuelle >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-400' }}">
                         @if($etapeActuelle > 1)
@@ -30,13 +36,17 @@
                             <span class="text-sm font-bold">1</span>
                         @endif
                     </div>
-                    <span class="text-sm font-medium {{ $etapeActuelle >= 1 ? 'text-gray-900' : 'text-gray-400' }}">Informations</span>
-                </div>
-
-                <div class="flex-1 h-px mx-4 {{ $etapeActuelle >= 2 ? 'bg-indigo-600' : 'bg-gray-200' }} transition-colors"></div>
+                    <span class="truncate text-xs font-medium sm:text-sm {{ $etapeActuelle >= 1 ? 'text-gray-900' : 'text-gray-400' }}">Informations</span>
+                </button>
 
                 {{-- Étape 2 --}}
-                <div class="flex items-center gap-3 cursor-pointer" @click="if(etape > 2) $wire.set('etapeActuelle', 2)">
+                <button
+                    type="button"
+                    class="flex min-w-0 flex-col items-center gap-2 rounded-xl px-2 py-3 text-center transition-colors sm:flex-row sm:text-left"
+                    :class="etape > 2 ? 'hover:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500' : ''"
+                    @click="if(etape > 2) $wire.set('etapeActuelle', 2)"
+                    :disabled="etape <= 2"
+                    @if($etapeActuelle === 2) aria-current="step" @endif>
                     <div class="w-9 h-9 rounded-full flex items-center justify-center transition-colors
                         {{ $etapeActuelle >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-400' }}">
                         @if($etapeActuelle > 2)
@@ -45,18 +55,16 @@
                             <span class="text-sm font-bold">2</span>
                         @endif
                     </div>
-                    <span class="text-sm font-medium {{ $etapeActuelle >= 2 ? 'text-gray-900' : 'text-gray-400' }}">Périmètre</span>
-                </div>
-
-                <div class="flex-1 h-px mx-4 {{ $etapeActuelle >= 3 ? 'bg-indigo-600' : 'bg-gray-200' }} transition-colors"></div>
+                    <span class="truncate text-xs font-medium sm:text-sm {{ $etapeActuelle >= 2 ? 'text-gray-900' : 'text-gray-400' }}">Périmètre</span>
+                </button>
 
                 {{-- Étape 3 --}}
-                <div class="flex items-center gap-3">
+                <div class="flex min-w-0 flex-col items-center gap-2 rounded-xl px-2 py-3 text-center sm:flex-row sm:text-left" @if($etapeActuelle === 3) aria-current="step" @endif>
                     <div class="w-9 h-9 rounded-full flex items-center justify-center transition-colors
                         {{ $etapeActuelle >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-400' }}">
                         <span class="text-sm font-bold">3</span>
                     </div>
-                    <span class="text-sm font-medium {{ $etapeActuelle >= 3 ? 'text-gray-900' : 'text-gray-400' }}">Équipe</span>
+                    <span class="truncate text-xs font-medium sm:text-sm {{ $etapeActuelle >= 3 ? 'text-gray-900' : 'text-gray-400' }}">Équipe</span>
                 </div>
             </div>
         </div>
@@ -185,11 +193,11 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 @forelse($this->localisationsFiltrees as $localisation)
                                     @php
-                                        $estSelectionnee = in_array($localisation->idLocalisation, $localisationsSelectionnees);
+                                        $estSelectionnee = in_array($localisation->id, $localisationsSelectionnees);
                                     @endphp
                                     <div
-                                        wire:click="toggleLocalisation({{ $localisation->idLocalisation }})"
-                                        wire:key="loc-{{ $localisation->idLocalisation }}"
+                                        wire:click="toggleLocalisation({{ $localisation->id }})"
+                                        wire:key="loc-{{ $localisation->id }}"
                                         class="flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-all
                                             {{ $estSelectionnee
                                                 ? 'border-indigo-500 bg-indigo-50/60 shadow-sm'
@@ -206,11 +214,11 @@
                                         {{-- Infos --}}
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-medium text-gray-900 truncate">
-                                                {{ $localisation->Localisation }}
+                                                {{ $localisation->localisation }}
                                             </p>
                                             <div class="flex items-center gap-2 mt-0.5">
-                                                @if($localisation->CodeLocalisation)
-                                                    <span class="text-xs text-gray-400">{{ $localisation->CodeLocalisation }}</span>
+                                                @if($localisation->code)
+                                                    <span class="text-xs text-gray-400">{{ $localisation->code }}</span>
                                                     <span class="text-gray-300">&middot;</span>
                                                 @endif
                                                 <span class="text-xs text-gray-500">{{ $localisation->biens_count ?? 0 }} bien(s)</span>
@@ -264,9 +272,9 @@
 
                         {{-- Liste des assignations (scrollable) --}}
                         <div class="divide-y divide-gray-100 max-h-[32rem] overflow-y-auto">
-                            @foreach($this->localisations->whereIn('idLocalisation', $localisationsSelectionnees) as $localisation)
+                            @foreach($this->localisations->whereIn('id', $localisationsSelectionnees) as $localisation)
                                 @php
-                                    $locId = $localisation->idLocalisation;
+                                    $locId = $localisation->id;
                                     $agentsAssignes = $assignations[$locId] ?? [];
                                 @endphp
                                 <div wire:key="assign-{{ $locId }}" class="px-6 py-4">
@@ -274,7 +282,7 @@
                                         {{-- Localisation info --}}
                                         <div class="flex-1 min-w-0">
                                             <p class="text-sm font-medium text-gray-900 truncate">
-                                                {{ $localisation->Localisation }}
+                                                {{ $localisation->localisation }}
                                             </p>
                                             <p class="text-xs text-gray-400 mt-0.5">
                                                 {{ $localisation->biens_count ?? 0 }} immobilisation(s)

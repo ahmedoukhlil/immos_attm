@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
+
 class InventaireScan extends Model
 {
     use HasFactory;
@@ -13,10 +14,11 @@ class InventaireScan extends Model
     protected $fillable = [
         'inventaire_id',
         'inventaire_localisation_id',
-        'bien_id',
+        'immobilisation_id',
         'date_scan',
         'statut_scan',
         'localisation_reelle_id',
+        'site_reel_id',
         'etat_constate',
         'commentaire',
         'photo_path',
@@ -48,20 +50,12 @@ class InventaireScan extends Model
     }
 
     /**
-     * Relation avec le bien (Gesimmo)
-     * bien_id contient le NumOrdre de la table gesimmo
+     * Immobilisation scannée
      */
     public function bien(): BelongsTo
     {
-        return $this->belongsTo(Gesimmo::class, 'bien_id', 'NumOrdre');
-    }
-
-    /**
-     * Alias de bien() pour compatibilité
-     */
-    public function gesimmo(): BelongsTo
-    {
-        return $this->bien();
+        return $this->belongsTo(Immobilisation::class, 'immobilisation_id')
+            ->withoutGlobalScope(Immobilisation::PORTEE_EN_SERVICE);
     }
 
     /**
@@ -69,7 +63,12 @@ class InventaireScan extends Model
      */
     public function localisationReelle(): BelongsTo
     {
-        return $this->belongsTo(LocalisationImmo::class, 'localisation_reelle_id', 'idLocalisation');
+        return $this->belongsTo(Localisation::class, 'localisation_reelle_id');
+    }
+
+    public function siteReel(): BelongsTo
+    {
+        return $this->belongsTo(Site::class, 'site_reel_id');
     }
 
     /**
@@ -83,7 +82,6 @@ class InventaireScan extends Model
     /**
      * SCOPES
      */
-
     public function scopePresents(Builder $query): Builder
     {
         return $query->where('statut_scan', 'present');
@@ -109,16 +107,12 @@ class InventaireScan extends Model
      */
 
     /**
-     * Vérifie si le scan est conforme (localisation réelle = localisation prévue)
+     * Le statut est calculé à l'enregistrement depuis le référentiel figé.
+     * Le relire évite qu'une modification ultérieure du bien change le résultat.
      */
     public function getIsConformeAttribute(): bool
     {
-        if (!$this->bien || !$this->localisationReelle) {
-            return false;
-        }
-
-        $locPrevue = $this->bien->emplacement?->idLocalisation;
-        return $locPrevue === $this->localisation_reelle_id;
+        return $this->statut_scan === 'present';
     }
 
     /**
@@ -130,24 +124,34 @@ class InventaireScan extends Model
     }
 
     /**
-     * Retourne le code inventaire depuis Gesimmo
+     * Code affiché de l'immobilisation scannée
      */
     public function getCodeInventaireAttribute(): string
     {
-        if ($this->bien) {
-            return $this->bien->code_formate ?? ('GS' . $this->bien->NumOrdre);
+        if ($bienAttendu = $this->bienAttenduCharge()) {
+            return $bienAttendu->code_affiche;
         }
-        return 'GS' . $this->bien_id;
+
+        if ($this->bien) {
+            return $this->bien->code_formate;
+        }
+
+        return 'GS'.$this->immobilisation_id;
     }
 
     /**
-     * Retourne la désignation depuis Gesimmo
+     * Désignation de l'immobilisation scannée
      */
     public function getDesignationAttribute(): string
     {
-        if ($this->bien && $this->bien->designation) {
-            return $this->bien->designation->designation ?? 'N/A';
+        if ($bienAttendu = $this->bienAttenduCharge()) {
+            return $bienAttendu->designation ?? 'N/A';
         }
+
+        if ($this->bien && $this->bien->designation) {
+            return $this->bien->libelle_article ?? 'N/A';
+        }
+
         return 'N/A';
     }
 
@@ -156,11 +160,11 @@ class InventaireScan extends Model
      */
     public function getLocalisationCodeAttribute(): ?string
     {
-        $loc = $this->bien?->emplacement?->localisation;
-        if ($loc) {
-            return $loc->CodeLocalisation ?? $loc->Localisation;
+        if ($bienAttendu = $this->bienAttenduCharge()) {
+            return $bienAttendu->localisation_code ?? $bienAttendu->localisation_nom;
         }
-        return null;
+
+        return $this->bien?->site?->localisation?->libelle_court;
     }
 
     /**
@@ -168,7 +172,27 @@ class InventaireScan extends Model
      */
     public function getCategorieAttribute(): ?string
     {
-        return $this->bien?->categorie?->Categorie;
+        if ($bienAttendu = $this->bienAttenduCharge()) {
+            return $bienAttendu->categorie;
+        }
+
+        return $this->bien?->categorie?->categorie;
+    }
+
+    /**
+     * Retrouve la fiche figée sans déclencher de requête implicite par scan.
+     */
+    private function bienAttenduCharge(): ?InventaireImmobilisationAttendue
+    {
+        if (! $this->relationLoaded('inventaire')
+            || ! $this->inventaire?->hasFrozenReference()
+            || ! $this->inventaire->relationLoaded('biensAttendus')) {
+            return null;
+        }
+
+        return $this->inventaire->biensAttendus->first(
+            fn (InventaireImmobilisationAttendue $bien): bool => (int) $bien->immobilisation_id === (int) $this->immobilisation_id,
+        );
     }
 
     /**
@@ -181,6 +205,7 @@ class InventaireScan extends Model
             'neuf' => 'Neuf',
             'defectueux' => 'Defectueux',
         ];
+
         return $labels[$this->etat_constate ?? 'bon_etat'] ?? 'Bon Etat';
     }
 
@@ -193,7 +218,7 @@ class InventaireScan extends Model
             return null;
         }
         $path = ltrim(str_replace('\\', '/', $this->photo_path), '/');
-        return '/storage/' . $path;
+
+        return '/storage/'.$path;
     }
 }
-

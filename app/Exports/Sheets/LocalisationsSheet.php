@@ -5,27 +5,24 @@ namespace App\Exports\Sheets;
 use App\Models\Inventaire;
 use App\Services\RapportService;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Sheet Excel pour l'analyse par localisation
  */
-class LocalisationsSheet implements FromCollection, WithTitle, WithHeadings, WithStyles, WithColumnWidths
+class LocalisationsSheet implements FromCollection, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
     protected $inventaire;
-    protected $performanceLocalisations;
 
     public function __construct(Inventaire $inventaire)
     {
         $this->inventaire = $inventaire;
-        $rapportService = app(RapportService::class);
-        $this->performanceLocalisations = $rapportService->getPerformanceLocalisations($inventaire);
     }
 
     /**
@@ -41,7 +38,7 @@ class LocalisationsSheet implements FromCollection, WithTitle, WithHeadings, Wit
      */
     public function collection()
     {
-        return $this->performanceLocalisations->map(function ($perf) {
+        return app(RapportService::class)->getPerformanceLocalisations($this->inventaire)->map(function ($perf) {
             return [
                 'code' => $perf['code'] ?? 'N/A',
                 'designation' => $perf['designation'] ?? 'N/A',
@@ -50,7 +47,7 @@ class LocalisationsSheet implements FromCollection, WithTitle, WithHeadings, Wit
                 'presents' => $perf['presents'] ?? 0,
                 'deplaces' => $perf['deplaces'] ?? 0,
                 'absents' => $perf['absents'] ?? 0,
-                'taux_conformite' => number_format($perf['taux_conformite'] ?? 0, 2) . '%',
+                'taux_conformite' => number_format($perf['taux_conformite'] ?? 0, 2).'%',
                 'duree_minutes' => $perf['duree_minutes'] ?? '-',
                 'agent' => $perf['agent'] ?? 'Non assigné',
                 'statut' => ucfirst($perf['statut'] ?? 'N/A'),
@@ -67,7 +64,7 @@ class LocalisationsSheet implements FromCollection, WithTitle, WithHeadings, Wit
             'Code',
             'Désignation',
             'Attendus',
-            'Scannés',
+            'Scannés physiquement',
             'Présents',
             'Déplacés',
             'Absents',
@@ -112,4 +109,3 @@ class LocalisationsSheet implements FromCollection, WithTitle, WithHeadings, Wit
         ];
     }
 }
-

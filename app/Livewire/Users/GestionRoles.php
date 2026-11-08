@@ -3,9 +3,9 @@
 namespace App\Livewire\Users;
 
 use App\Models\User;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\Layout;
 
 #[Layout('components.layouts.app')]
 class GestionRoles extends Component
@@ -13,9 +13,13 @@ class GestionRoles extends Component
     use WithPagination;
 
     public $search = '';
-    public $filterRole = 'all'; // all, admin, admin_stock, agent
+
+    public $filterRole = 'all'; // all, admin, agent
+
     public $selectedUserId = null;
+
     public $newRole = '';
+
     public $confirmingRoleChange = false;
 
     protected $queryString = ['search', 'filterRole'];
@@ -26,7 +30,7 @@ class GestionRoles extends Component
     public function mount()
     {
         $user = auth()->user();
-        if (!$user || !$user->isAdmin()) {
+        if (! $user || ! $user->isAdmin()) {
             abort(403, 'Accès non autorisé. Seuls les administrateurs peuvent gérer les rôles.');
         }
     }
@@ -53,17 +57,17 @@ class GestionRoles extends Component
     public function confirmRoleChange($userId, $currentRole, $targetRole = null)
     {
         $this->selectedUserId = $userId;
-        
+
         // Si un rôle cible est spécifié, l'utiliser
         if ($targetRole) {
             $this->newRole = $targetRole;
         } else {
             // Sinon, toggle entre les rôles
-            $roles = ['admin', 'admin_stock', 'agent'];
+            $roles = ['admin', 'agent'];
             $currentIndex = array_search($currentRole, $roles);
             $this->newRole = $roles[($currentIndex + 1) % count($roles)];
         }
-        
+
         $this->confirmingRoleChange = true;
     }
 
@@ -82,11 +86,18 @@ class GestionRoles extends Component
      */
     public function changeRole()
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        if (! in_array($this->newRole, ['admin', 'agent'], true)) {
+            abort(422, 'Rôle invalide.');
+        }
+
         $user = User::find($this->selectedUserId);
 
-        if (!$user) {
+        if (! $user) {
             session()->flash('error', 'Utilisateur introuvable.');
             $this->cancelRoleChange();
+
             return;
         }
 
@@ -94,15 +105,17 @@ class GestionRoles extends Component
         if ($user->idUser === auth()->user()->idUser) {
             session()->flash('error', 'Vous ne pouvez pas modifier votre propre rôle.');
             $this->cancelRoleChange();
+
             return;
         }
 
-        // Vérifier qu'il reste au moins un admin (pas admin_stock)
+        // Vérifier qu'il reste au moins un administrateur.
         if ($user->role === 'admin' && $this->newRole !== 'admin') {
             $adminCount = User::where('role', 'admin')->count();
             if ($adminCount <= 1) {
                 session()->flash('error', 'Impossible de retirer le rôle admin. Il doit y avoir au moins un administrateur principal.');
                 $this->cancelRoleChange();
+
                 return;
             }
         }
@@ -114,7 +127,6 @@ class GestionRoles extends Component
 
         $roleNames = [
             'admin' => 'administrateur',
-            'admin_stock' => 'admin stock',
             'agent' => 'agent',
         ];
         $roleName = $roleNames[$this->newRole] ?? $this->newRole;
@@ -128,30 +140,35 @@ class GestionRoles extends Component
      */
     public function toggleRole($userId)
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $user = User::find($userId);
 
-        if (!$user) {
+        if (! $user) {
             session()->flash('error', 'Utilisateur introuvable.');
+
             return;
         }
 
         // Empêcher de changer son propre rôle
         if ($user->idUser === auth()->user()->idUser) {
             session()->flash('error', 'Vous ne pouvez pas modifier votre propre rôle.');
+
             return;
         }
 
-        // Vérifier qu'il reste au moins un admin (pas admin_stock)
+        // Vérifier qu'il reste au moins un administrateur.
         if ($user->role === 'admin') {
             $adminCount = User::where('role', 'admin')->count();
             if ($adminCount <= 1) {
                 session()->flash('error', 'Impossible de retirer le rôle admin. Il doit y avoir au moins un administrateur principal.');
+
                 return;
             }
         }
 
-        // Toggle le rôle dans l'ordre : admin -> admin_stock -> agent -> admin
-        $roles = ['admin', 'admin_stock', 'agent'];
+        // Alterner entre les deux rôles métier.
+        $roles = ['admin', 'agent'];
         $currentIndex = array_search($user->role, $roles);
         $nextIndex = ($currentIndex + 1) % count($roles);
         $user->role = $roles[$nextIndex];
@@ -159,7 +176,6 @@ class GestionRoles extends Component
 
         $roleNames = [
             'admin' => 'administrateur',
-            'admin_stock' => 'admin stock',
             'agent' => 'agent',
         ];
         $roleName = $roleNames[$user->role] ?? $user->role;
@@ -170,12 +186,12 @@ class GestionRoles extends Component
     {
         $users = User::query()
             ->when($this->search, function ($query) {
-                $query->where('users', 'like', '%' . $this->search . '%');
+                $query->where('users', 'like', '%'.$this->search.'%');
             })
             ->when($this->filterRole !== 'all', function ($query) {
                 $query->where('role', $this->filterRole);
             })
-            ->orderByRaw("CASE role WHEN 'admin' THEN 1 WHEN 'admin_stock' THEN 2 WHEN 'agent' THEN 3 ELSE 4 END")
+            ->orderByRaw("CASE role WHEN 'admin' THEN 1 WHEN 'agent' THEN 2 ELSE 3 END")
             ->orderBy('users')
             ->paginate(20);
 
@@ -183,7 +199,6 @@ class GestionRoles extends Component
         $stats = [
             'total' => User::count(),
             'admins' => User::where('role', 'admin')->count(),
-            'admin_stocks' => User::where('role', 'admin_stock')->count(),
             'agents' => User::where('role', 'agent')->count(),
         ];
 

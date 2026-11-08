@@ -5,27 +5,24 @@ namespace App\Exports\Sheets;
 use App\Models\Inventaire;
 use App\Services\RapportService;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Sheet Excel pour la performance par agent
  */
-class PerformanceAgentsSheet implements FromCollection, WithTitle, WithHeadings, WithStyles, WithColumnWidths
+class PerformanceAgentsSheet implements FromCollection, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
     protected $inventaire;
-    protected $performanceAgents;
 
     public function __construct(Inventaire $inventaire)
     {
         $this->inventaire = $inventaire;
-        $rapportService = app(RapportService::class);
-        $this->performanceAgents = $rapportService->getPerformanceAgents($inventaire);
     }
 
     /**
@@ -41,7 +38,7 @@ class PerformanceAgentsSheet implements FromCollection, WithTitle, WithHeadings,
      */
     public function collection()
     {
-        return $this->performanceAgents->map(function ($perf) {
+        return app(RapportService::class)->getPerformanceAgents($this->inventaire)->map(function ($perf) {
             return [
                 'agent' => $perf['agent'] ?? 'N/A',
                 'localisations' => $perf['localisations'] ?? 0,
@@ -100,4 +97,3 @@ class PerformanceAgentsSheet implements FromCollection, WithTitle, WithHeadings,
         ];
     }
 }
-

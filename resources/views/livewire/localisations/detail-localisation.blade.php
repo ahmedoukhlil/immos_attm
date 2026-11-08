@@ -28,7 +28,7 @@
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
                         </svg>
-                        Dashboard
+                        Tableau de bord
                     </a>
                 </li>
                 <li>
@@ -123,7 +123,8 @@
                         <div class="flex items-center gap-2">
                             <code class="px-3 py-2 bg-gray-100 rounded-lg text-lg font-mono font-bold">{{ $localisation->code }}</code>
                             <button 
-                                onclick="navigator.clipboard.writeText('{{ $localisation->code }}'); alert('Code copié !');"
+                                onclick="navigator.clipboard.writeText(this.dataset.code).then(() => window.dispatchEvent(new CustomEvent('toast', { detail: { message: 'Code copié', type: 'success' } })))"
+                                data-code="{{ $localisation->code }}"
                                 class="p-2 text-gray-500 hover:text-gray-700 transition-colors"
                                 title="Copier">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,9 +195,9 @@
                         <p class="text-3xl font-bold text-gray-900">{{ $this->statistiques['total_biens'] }}</p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500">Valeur totale</p>
+                        <p class="text-sm text-gray-500">Sites</p>
                         <p class="text-3xl font-bold text-indigo-600">
-                            {{ number_format($this->statistiques['valeur_totale'], 0, ',', ' ') }} MRU
+                            {{ $this->statistiques['total_sites'] }}
                         </p>
                     </div>
                 </div>
@@ -204,7 +205,7 @@
                 {{-- Graphique camembert : Répartition par nature --}}
                 @if(!empty($this->statistiques['par_nature']))
                     <div class="mb-6">
-                        <h3 class="text-sm font-medium text-gray-700 mb-3">Répartition par nature</h3>
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Répartition par catégorie</h3>
                         <div class="space-y-2 mb-4">
                             @foreach($this->statistiques['par_nature'] as $nature => $count)
                                 <div class="flex items-center justify-between">
@@ -221,7 +222,9 @@
                                 </div>
                             @endforeach
                         </div>
-                        <canvas id="chart-nature" height="200"></canvas>
+                        <div class="relative h-56 w-full" wire:ignore>
+                            <canvas id="chart-nature" aria-label="Répartition des immobilisations par catégorie" role="img"></canvas>
+                        </div>
                     </div>
                 @endif
 
@@ -245,7 +248,9 @@
                                 </div>
                             @endforeach
                         </div>
-                        <canvas id="chart-etat" height="200"></canvas>
+                        <div class="relative h-56 w-full" wire:ignore>
+                            <canvas id="chart-etat" aria-label="Répartition des immobilisations par état" role="img"></canvas>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -282,9 +287,9 @@
                             <select 
                                 wire:model.live="filterNature"
                                 class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                <option value="">Toutes les natures</option>
-                                @foreach($natures as $key => $nature)
-                                    <option value="{{ $key }}">{{ $nature['label'] }}</option>
+                                <option value="">Toutes les catégories</option>
+                                @foreach($this->categories as $categorie)
+                                    <option value="{{ $categorie->id }}">{{ $categorie->categorie }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -298,8 +303,8 @@
                                     <tr>
                                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
                                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Désignation</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nature</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Valeur</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Catégorie</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Site</th>
                                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">État</th>
                                         <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                                     </tr>
@@ -308,22 +313,22 @@
                                     @foreach($this->biens as $bien)
                                         <tr class="hover:bg-gray-50">
                                             <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                GS{{ $bien->NumOrdre }}
+                                                {{ $bien->code_formate }}
                                             </td>
                                             <td class="px-3 py-2 text-sm text-gray-900">
-                                                {{ Str::limit($bien->designation->designation ?? 'N/A', 40) }}
+                                                {{ Str::limit($bien->libelle_article ?? 'N/A', 40) }}
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                    {{ $bien->natureJuridique->NatJur ?? 'N/A' }}
+                                                    {{ $bien->categorie->categorie ?? 'N/A' }}
                                                 </span>
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
-                                                N/A
+                                                {{ $bien->site->site ?? 'N/A' }}
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
                                                 @php
-                                                    $etatNom = strtolower($bien->etat->Etat ?? '');
+                                                    $etatNom = strtolower($bien->etat->etat ?? '');
                                                 @endphp
                                                 @if(isset($etats[$etatNom]))
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium {{ $etats[$etatNom]['color'] }}">
@@ -331,13 +336,13 @@
                                                     </span>
                                                 @else
                                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                        {{ $bien->etat->Etat ?? 'N/A' }}
+                                                        {{ $bien->etat->etat ?? 'N/A' }}
                                                     </span>
                                                 @endif
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap text-right text-sm">
                                                 <a 
-                                                    href="{{ route('biens.show', $bien->NumOrdre) }}"
+                                                    href="{{ route('biens.show', $bien->id) }}"
                                                     class="text-indigo-600 hover:text-indigo-900">
                                                     Voir
                                                 </a>
@@ -561,7 +566,7 @@
                                 @foreach($this->mouvementsRecents['entres'] as $scan)
                                     <div class="border-l-4 border-green-500 pl-4 py-2">
                                         <p class="text-sm font-medium text-gray-900">
-                                            GS{{ $scan->gesimmo->NumOrdre ?? 'N/A' }}
+                                            {{ $scan->bien?->code_formate ?? 'GS'.$scan->immobilisation_id }}
                                         </p>
                                         <p class="text-xs text-gray-500">
                                             {{ $scan->date_scan->format('d/m/Y à H:i') }}
@@ -585,14 +590,14 @@
                                 @foreach($this->mouvementsRecents['sortis'] as $scan)
                                     <div class="border-l-4 border-red-500 pl-4 py-2">
                                         <p class="text-sm font-medium text-gray-900">
-                                            GS{{ $scan->gesimmo->NumOrdre ?? 'N/A' }}
+                                            {{ $scan->bien?->code_formate ?? 'GS'.$scan->immobilisation_id }}
                                         </p>
                                         <p class="text-xs text-gray-500">
                                             {{ $scan->date_scan->format('d/m/Y à H:i') }}
                                         </p>
                                         @if($scan->localisationReelle)
                                             <p class="text-xs text-gray-600 mt-1">
-                                                Vers : {{ $scan->localisationReelle->CodeLocalisation ?? $scan->localisationReelle->Localisation ?? 'N/A' }}
+                                                Vers : {{ $scan->localisationReelle->code ?? $scan->localisationReelle->localisation ?? 'N/A' }}
                                             </p>
                                         @elseif($scan->statut_scan === 'absent')
                                             <p class="text-xs text-red-600 mt-1">
@@ -716,15 +721,27 @@
     </div>
 
     {{-- Scripts pour les graphiques Chart.js --}}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    @vite('resources/js/chart.js')
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        (() => {
+        // Chart.js est chargé en module (différé) : on attend sa disponibilité, puis on
+        // recrée les graphiques sans empiler d'instances (navigation Livewire comprise).
+        const initialiserGraphiques = () => {
+            if (! window.Chart) {
+                setTimeout(initialiserGraphiques, 50);
+                return;
+            }
+            ['chart-nature', 'chart-etat'].forEach(id => {
+                const canvas = document.getElementById(id);
+                if (canvas) window.Chart.getChart(canvas)?.destroy();
+            });
+
             // Graphique camembert : Répartition par nature
             @if(!empty($this->statistiques['par_nature']))
                 const ctxNature = document.getElementById('chart-nature');
                 if (ctxNature) {
                     const dataNature = @json($this->statistiques['par_nature']);
-                    new Chart(ctxNature, {
+                    new window.Chart(ctxNature, {
                         type: 'doughnut',
                         data: {
                             labels: Object.keys(dataNature).map(nature => {
@@ -759,7 +776,7 @@
                 const ctxEtat = document.getElementById('chart-etat');
                 if (ctxEtat) {
                     const dataEtat = @json($this->statistiques['par_etat']);
-                    new Chart(ctxEtat, {
+                    new window.Chart(ctxEtat, {
                         type: 'bar',
                         data: {
                             labels: Object.keys(dataEtat).map(etat => {
@@ -797,7 +814,10 @@
                     });
                 }
             @endif
-        });
+        };
+
+        initialiserGraphiques();
+        })();
     </script>
 
     {{-- Messages flash --}}

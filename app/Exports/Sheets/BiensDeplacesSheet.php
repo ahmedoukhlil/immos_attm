@@ -5,27 +5,24 @@ namespace App\Exports\Sheets;
 use App\Models\Inventaire;
 use App\Services\RapportService;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Sheet Excel pour les biens déplacés
  */
-class BiensDeplacesSheet implements FromCollection, WithTitle, WithHeadings, WithStyles, WithColumnWidths
+class BiensDeplacesSheet implements FromCollection, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
     protected $inventaire;
-    protected $biensDeplaces;
 
     public function __construct(Inventaire $inventaire)
     {
         $this->inventaire = $inventaire;
-        $rapportService = app(RapportService::class);
-        $this->biensDeplaces = $rapportService->getBiensDeplaces($inventaire);
     }
 
     /**
@@ -41,15 +38,15 @@ class BiensDeplacesSheet implements FromCollection, WithTitle, WithHeadings, Wit
      */
     public function collection()
     {
-        return $this->biensDeplaces->map(function ($bien) {
+        return app(RapportService::class)->getBiensDeplaces($this->inventaire)->map(function ($bien) {
             return [
                 'code' => $bien['code'] ?? 'N/A',
                 'designation' => $bien['designation'] ?? 'N/A',
                 'nature' => ucfirst($bien['nature'] ?? 'N/A'),
                 'localisation_prevue' => $bien['localisation_prevue'] ?? 'N/A',
                 'localisation_reelle' => $bien['localisation_reelle'] ?? 'N/A',
-                'service' => $bien['service'] ?? 'N/A',
-                'valeur' => number_format($bien['valeur'] ?? 0, 0, ',', ' '),
+                'site' => $bien['site'] ?? 'N/A',
+                'responsable' => $bien['responsable'] ?? 'N/A',
                 'date_scan' => $bien['date_scan'] ? $bien['date_scan']->format('d/m/Y H:i') : 'N/A',
                 'agent' => $bien['agent'] ?? 'N/A',
                 'commentaire' => $bien['commentaire'] ?? '-',
@@ -68,8 +65,8 @@ class BiensDeplacesSheet implements FromCollection, WithTitle, WithHeadings, Wit
             'Nature',
             'Localisation Prévue',
             'Localisation Réelle',
-            'Service',
-            'Valeur (MRU)',
+            'Site',
+            'Responsable',
             'Date Scan',
             'Agent',
             'Commentaire',
@@ -109,4 +106,3 @@ class BiensDeplacesSheet implements FromCollection, WithTitle, WithHeadings, Wit
         ];
     }
 }
-

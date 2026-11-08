@@ -11,29 +11,28 @@ class Designation extends Model
 {
     use HasFactory;
 
-    protected $table = 'designation';
-    protected $primaryKey = 'id';
+    protected $table = 'designations';
+
     public $timestamps = false;
 
-    protected $fillable = ['designation', 'CodeDesignation', 'idCat'];
+    protected $fillable = ['designation', 'code', 'categorie_id', 'est_compose'];
 
-    /**
-     * RELATIONS
-     */
+    protected $casts = [
+        'est_compose' => 'boolean',
+    ];
 
-    /**
-     * Relation avec la catégorie
-     */
     public function categorie(): BelongsTo
     {
-        return $this->belongsTo(Categorie::class, 'idCat', 'idCategorie');
+        return $this->belongsTo(Categorie::class);
     }
 
-    /**
-     * Relation avec les immobilisations
-     */
     public function immobilisations(): HasMany
     {
-        return $this->hasMany(Gesimmo::class, 'idDesignation', 'id');
+        return $this->hasMany(Immobilisation::class);
+    }
+
+    public function composants(): HasMany
+    {
+        return $this->hasMany(DesignationComposant::class)->orderBy('ordre');
     }
 }

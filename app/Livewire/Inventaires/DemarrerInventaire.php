@@ -2,10 +2,11 @@
 
 namespace App\Livewire\Inventaires;
 
+use App\Exceptions\InventaireWorkflowException;
 use App\Models\Inventaire;
-use App\Models\InventaireLocalisation;
-use App\Models\LocalisationImmo;
+use App\Models\Localisation;
 use App\Models\User;
+use App\Services\InventaireService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -15,11 +16,17 @@ class DemarrerInventaire extends Component
      * Propriétés publiques du formulaire
      */
     public $annee;
+
     public $date_debut;
+
     public $observation = '';
+
     public $localisationsSelectionnees = [];
+
     public $assignations = []; // [localisation_id => [user_id, user_id, ...]]
+
     public $agentGlobalSelect = ''; // Pour le select global d'assignation
+
     public $rechercheLocalisation = ''; // Filtre de recherche pour les localisations
 
     /**
@@ -38,6 +45,7 @@ class DemarrerInventaire extends Component
         if ($inventaireExistant) {
             session()->flash('error', "Un inventaire est déjà en cours ou en préparation pour l'année {$inventaireExistant->annee}.");
             $this->redirect(route('inventaires.show', $inventaireExistant), navigate: true);
+
             return;
         }
 
@@ -61,7 +69,7 @@ class DemarrerInventaire extends Component
         // Générer les années de n-3 à n+1 (l'inventaire porte généralement sur l'année n-1)
         for ($i = -3; $i <= 1; $i++) {
             $annee = $anneeActuelle + $i;
-            if (!in_array($annee, $anneesUtilisees)) {
+            if (! in_array($annee, $anneesUtilisees)) {
                 $anneesDisponibles[] = $annee;
             }
         }
@@ -71,19 +79,13 @@ class DemarrerInventaire extends Component
 
     /**
      * Propriété calculée : Retourne toutes les localisations avec stats pré-calculées
-     * Évite les requêtes N+1 en pré-chargeant emplacements + immobilisations count
+     * Évite les requêtes N+1 en comptant sites et immobilisations en SQL
      */
     public function getLocalisationsProperty()
     {
-        return LocalisationImmo::with(['emplacements' => function ($query) {
-                $query->withCount('immobilisations');
-            }])
-            ->withCount('emplacements')
-            ->orderBy('Localisation')
-            ->get()
-            ->each(function ($localisation) {
-                $localisation->biens_count = $localisation->emplacements->sum('immobilisations_count');
-            });
+        return Localisation::withCount(['sites', 'immobilisations as biens_count'])
+            ->orderBy('localisation')
+            ->get();
     }
 
     /**
@@ -104,8 +106,8 @@ class DemarrerInventaire extends Component
         return collect($this->anneesDisponibles)
             ->map(function ($annee) {
                 return [
-                    'value' => (string)$annee,
-                    'text' => (string)$annee,
+                    'value' => (string) $annee,
+                    'text' => (string) $annee,
                 ];
             })
             ->toArray();
@@ -126,8 +128,8 @@ class DemarrerInventaire extends Component
             ->get()
             ->map(function ($agent) {
                 return [
-                    'value' => (string)$agent->idUser,
-                    'text' => $agent->users . ' (' . $agent->role_name . ')',
+                    'value' => (string) $agent->idUser,
+                    'text' => $agent->users.' ('.$agent->role_name.')',
                 ];
             })
             ->toArray();
@@ -148,8 +150,9 @@ class DemarrerInventaire extends Component
 
         return $this->localisations->filter(function ($loc) use ($recherche) {
             $terme = mb_strtolower($recherche);
-            return str_contains(mb_strtolower($loc->Localisation ?? ''), $terme)
-                || str_contains(mb_strtolower($loc->CodeLocalisation ?? ''), $terme);
+
+            return str_contains(mb_strtolower($loc->localisation ?? ''), $terme)
+                || str_contains(mb_strtolower($loc->code ?? ''), $terme);
         });
     }
 
@@ -172,7 +175,7 @@ class DemarrerInventaire extends Component
         }
 
         return $this->localisations
-            ->whereIn('idLocalisation', $this->localisationsSelectionnees)
+            ->whereIn('id', $this->localisationsSelectionnees)
             ->sum('biens_count');
     }
 
@@ -187,6 +190,7 @@ class DemarrerInventaire extends Component
                 $allAgents = array_merge($allAgents, $agents);
             }
         }
+
         return count(array_unique($allAgents));
     }
 
@@ -200,7 +204,7 @@ class DemarrerInventaire extends Component
             'date_debut' => 'required|date|after_or_equal:today',
             'observation' => 'nullable|string|max:1000',
             'localisationsSelectionnees' => 'required|array|min:1',
-            'localisationsSelectionnees.*' => 'exists:localisation,idLocalisation',
+            'localisationsSelectionnees.*' => 'exists:localisations,id',
         ];
     }
 
@@ -249,7 +253,7 @@ class DemarrerInventaire extends Component
         if (in_array($localisationId, $this->localisationsSelectionnees)) {
             // Retirer de la sélection
             $this->localisationsSelectionnees = array_values(
-                array_filter($this->localisationsSelectionnees, fn($id) => $id !== $localisationId)
+                array_filter($this->localisationsSelectionnees, fn ($id) => $id !== $localisationId)
             );
             // Retirer aussi l'assignation si elle existe
             unset($this->assignations[$localisationId]);
@@ -264,7 +268,7 @@ class DemarrerInventaire extends Component
      */
     public function selectToutesLocalisations(): void
     {
-        $this->localisationsSelectionnees = $this->localisations->pluck('idLocalisation')->toArray();
+        $this->localisationsSelectionnees = $this->localisations->pluck('id')->toArray();
     }
 
     /**
@@ -284,11 +288,11 @@ class DemarrerInventaire extends Component
         $localisationId = (int) $localisationId;
         $userId = $userId ? (int) $userId : null;
 
-        if (!$userId || !in_array($localisationId, $this->localisationsSelectionnees)) {
+        if (! $userId || ! in_array($localisationId, $this->localisationsSelectionnees)) {
             return;
         }
 
-        if (!isset($this->assignations[$localisationId])) {
+        if (! isset($this->assignations[$localisationId])) {
             $this->assignations[$localisationId] = [];
         }
 
@@ -313,7 +317,7 @@ class DemarrerInventaire extends Component
 
         if (isset($this->assignations[$localisationId])) {
             $this->assignations[$localisationId] = array_values(
-                array_filter($this->assignations[$localisationId], fn($id) => $id !== $userId)
+                array_filter($this->assignations[$localisationId], fn ($id) => $id !== $userId)
             );
             if (empty($this->assignations[$localisationId])) {
                 unset($this->assignations[$localisationId]);
@@ -337,17 +341,17 @@ class DemarrerInventaire extends Component
      */
     public function assignerAgentGlobal($userId): void
     {
-        if (!$userId) {
+        if (! $userId) {
             return;
         }
 
         $userId = (int) $userId;
 
         foreach ($this->localisationsSelectionnees as $localisationId) {
-            if (!isset($this->assignations[$localisationId])) {
+            if (! isset($this->assignations[$localisationId])) {
                 $this->assignations[$localisationId] = [];
             }
-            if (!in_array($userId, $this->assignations[$localisationId])) {
+            if (! in_array($userId, $this->assignations[$localisationId])) {
                 $this->assignations[$localisationId][] = $userId;
             }
         }
@@ -390,49 +394,24 @@ class DemarrerInventaire extends Component
      */
     public function demarrer()
     {
+        abort_unless(Auth::user()?->isAdmin(), 403);
+
         // Valider toutes les données
         $validated = $this->validate();
 
         try {
-            // Créer l'inventaire
-            $inventaire = Inventaire::create([
-                'annee' => $validated['annee'],
-                'date_debut' => $validated['date_debut'],
-                'statut' => 'en_preparation',
-                'created_by' => Auth::id(),
-                'observation' => $validated['observation'] ?? null,
-            ]);
-
-            $localisationsMap = $this->localisations->keyBy('idLocalisation');
-
-            foreach ($this->localisationsSelectionnees as $localisationId) {
-                $localisation = $localisationsMap->get($localisationId);
-                
-                if ($localisation) {
-                    $agentIds = $this->assignations[$localisationId] ?? [];
-                    $primaryUserId = !empty($agentIds) ? $agentIds[0] : null;
-
-                    $invLoc = InventaireLocalisation::create([
-                        'inventaire_id' => $inventaire->id,
-                        'localisation_id' => $localisationId,
-                        'statut' => 'en_attente',
-                        'user_id' => $primaryUserId,
-                        'nombre_biens_attendus' => $localisation->biens_count ?? 0,
-                        'nombre_biens_scannes' => 0,
-                    ]);
-
-                    if (!empty($agentIds)) {
-                        $invLoc->agents()->sync($agentIds);
-                    }
-                }
-            }
+            $inventaire = app(InventaireService::class)->creerInventaire([
+                ...$validated,
+                'localisations' => $this->localisationsSelectionnees,
+                'assignations' => $this->assignations,
+            ], Auth::user());
 
             session()->flash('success', "L'inventaire {$inventaire->annee} a été créé avec succès. {$this->totalLocalisations} localisation(s) ont été ajoutée(s).");
 
             // Rediriger vers la page de détail de l'inventaire
             return redirect()->route('inventaires.show', $inventaire);
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la création de l\'inventaire: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la création de l\'inventaire.'));
         }
     }
 
@@ -452,4 +431,3 @@ class DemarrerInventaire extends Component
         return view('livewire.inventaires.demarrer-inventaire');
     }
 }
-

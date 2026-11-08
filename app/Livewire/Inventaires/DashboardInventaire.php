@@ -2,15 +2,23 @@
 
 namespace App\Livewire\Inventaires;
 
+use App\Exceptions\InventaireWorkflowException;
 use App\Models\Inventaire;
 use App\Models\InventaireLocalisation;
 use App\Models\InventaireScan;
+use App\Models\InventaireSite;
 use App\Models\User;
+use App\Services\InventaireService;
+use App\Services\SiteScanService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class DashboardInventaire extends Component
 {
+    use WithPagination;
+
     /**
      * Instance de l'inventaire
      */
@@ -20,11 +28,27 @@ class DashboardInventaire extends Component
      * Propriétés pour les filtres
      */
     public $filterStatutLoc = 'all'; // all, en_attente, en_cours, termine
+
     public $filterAgent = 'all';
+
     public $searchLoc = '';
+
     public $sortField = 'code';
+
     public $sortDirection = 'asc';
+
     public $activeAgentDropdown = null;
+
+    public $activeSitesPanel = null;
+
+    /**
+     * Filtres du détail des immobilisations scannées
+     */
+    public string $scanRecherche = '';
+
+    public string $scanStatut = 'physiques'; // physiques, present, deplace, absent, tous
+
+    public string $scanEtat = '';
 
     /**
      * Initialisation du composant
@@ -33,14 +57,14 @@ class DashboardInventaire extends Component
     {
         // Vérifier autorisation (admin ou agent assigné)
         $user = Auth::user();
-        
+
         $hasAccess = $inventaire->inventaireLocalisations()
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->idUser)
-                  ->orWhereHas('agents', fn($sub) => $sub->where('users.idUser', $user->idUser));
+                    ->orWhereHas('agents', fn ($sub) => $sub->where('users.idUser', $user->idUser));
             })->exists();
 
-        if (!$user->isAdmin() && !$hasAccess) {
+        if (! $user->isAdmin() && ! $hasAccess) {
             abort(403, 'Vous n\'avez pas accès à cet inventaire.');
         }
 
@@ -48,7 +72,7 @@ class DashboardInventaire extends Component
             'inventaireLocalisations.localisation',
             'inventaireLocalisations.agent',
             'inventaireLocalisations.agents',
-            'inventaireScans'
+            'inventaireScans',
         ]);
     }
 
@@ -61,101 +85,144 @@ class DashboardInventaire extends Component
         $inventaireLocalisations = $this->inventaire->inventaireLocalisations;
         $scans = $this->inventaire->inventaireScans;
 
-        $totalLocalisations = $inventaireLocalisations->count();
-        $localisationsTerminees = $inventaireLocalisations->where('statut', 'termine')->count();
-        $localisationsEnCours = $inventaireLocalisations->where('statut', 'en_cours')->count();
-        $localisationsEnAttente = $inventaireLocalisations->where('statut', 'en_attente')->count();
-
         // Calculer le total de biens attendus
         $totalBiensAttendus = $inventaireLocalisations->sum('nombre_biens_attendus');
-        
-        // Si le total est 0, recalculer depuis les emplacements (une seule fois)
-        if ($totalBiensAttendus == 0) {
-            $this->recalculerBiensAttendus();
-            // Recharger après mise à jour
-            $this->inventaire->load('inventaireLocalisations');
+
+        // Les anciens inventaires sans instantané utilisent un calcul de secours en
+        // mémoire. Une simple consultation du dashboard ne doit jamais écrire en base.
+        if ($totalBiensAttendus == 0 && ! $this->inventaire->hasFrozenReference()) {
+            $this->recalculerBiensAttendusEnMemoire();
             $inventaireLocalisations = $this->inventaire->inventaireLocalisations;
-            $totalBiensAttendus = $inventaireLocalisations->sum('nombre_biens_attendus');
         }
 
-        // Total de biens scannés : max entre localisations et scans uniques
-        $totalBiensScannesFromLoc = $inventaireLocalisations->sum('nombre_biens_scannes');
-        $totalBiensScannesFromScans = $scans->unique('bien_id')->count();
-        $totalBiensScannes = max($totalBiensScannesFromLoc, $totalBiensScannesFromScans);
-        
-        if ($totalBiensScannes == 0) {
-            $totalBiensScannes = $scans->count();
-        }
-
-        $biensPresents = $scans->where('statut_scan', 'present')->count();
-        $biensDeplaces = $scans->where('statut_scan', 'deplace')->count();
-        $biensAbsents = $scans->where('statut_scan', 'absent')->count();
-        $biensDeteriores = $scans->where('statut_scan', 'deteriore')->count();
-        $biensDefectueux = $scans->where('etat_constate', 'defectueux')->count();
-
-        $progressionGlobale = $totalBiensAttendus > 0 
-            ? round(($totalBiensScannes / $totalBiensAttendus) * 100, 1) 
-            : 0;
-        
-        $progressionLocalisations = $totalLocalisations > 0 
-            ? round(($localisationsTerminees / $totalLocalisations) * 100, 1) 
-            : 0;
-
-        // Conformité réelle = présents / total attendus (pas seulement scannés)
-        $tauxConformite = $totalBiensAttendus > 0 
-            ? round(($biensPresents / $totalBiensAttendus) * 100, 1) 
-            : 0;
-        
-        // Non encore vérifiés = attendus - scannés
-        $biensNonVerifies = max(0, $totalBiensAttendus - $totalBiensScannes);
-
-        $dureeJours = $this->inventaire->duree ?? 0;
+        $statistiques = app(InventaireService::class)->calculerStatistiques(
+            $this->inventaire,
+            $inventaireLocalisations,
+            $scans,
+        );
+        $scansPhysiques = $scans->where('statut_scan', '!=', 'absent');
 
         // Scans effectués aujourd'hui
-        $scansAujourdhui = $scans->filter(fn($scan) => $scan->date_scan && $scan->date_scan->isToday())->count();
+        $scansAujourdhui = $scansPhysiques
+            ->filter(fn ($scan) => $scan->date_scan && $scan->date_scan->isToday())
+            ->count();
 
         // Vitesse moyenne (scans par jour)
         $vitesseMoyenne = 0;
-        if ($this->inventaire->date_debut && $totalBiensScannes > 0) {
-            $joursEcoules = max(1, now()->diffInDays($this->inventaire->date_debut));
-            $vitesseMoyenne = round($totalBiensScannes / $joursEcoules, 1);
+        $debutEffectif = $this->inventaire->started_at ?? $this->inventaire->date_debut;
+        if ($debutEffectif && $statistiques['total_biens_scannes'] > 0) {
+            $joursEcoules = max(1, now()->diffInDays($debutEffectif));
+            $vitesseMoyenne = round($statistiques['total_biens_scannes'] / $joursEcoules, 1);
         }
 
-        return [
-            'total_localisations' => $totalLocalisations,
-            'localisations_terminees' => $localisationsTerminees,
-            'localisations_en_cours' => $localisationsEnCours,
-            'localisations_en_attente' => $localisationsEnAttente,
-            'total_biens_attendus' => $totalBiensAttendus,
-            'total_biens_scannes' => $totalBiensScannes,
-            'biens_presents' => $biensPresents,
-            'biens_deplaces' => $biensDeplaces,
-            'biens_absents' => $biensAbsents,
-            'biens_deteriores' => $biensDeteriores,
-            'biens_defectueux' => $biensDefectueux,
-            'progression_globale' => $progressionGlobale,
-            'progression_localisations' => $progressionLocalisations,
-            'taux_conformite' => $tauxConformite,
-            'biens_non_verifies' => $biensNonVerifies,
-            'duree_jours' => $dureeJours,
+        return array_merge($statistiques, [
+            // Le tableau de bord affiche l'avancement des rapprochements de biens.
+            'progression_globale' => $statistiques['taux_rapprochement'],
+            'progression_localisations' => $statistiques['progression_globale'],
+            'biens_non_verifies' => $statistiques['biens_non_scannes'],
             'scans_aujourdhui' => $scansAujourdhui,
             'vitesse_moyenne' => $vitesseMoyenne,
+        ]);
+    }
+
+    public function updatedScanRecherche(): void
+    {
+        $this->resetPage('scansPage');
+    }
+
+    public function updatedScanStatut(): void
+    {
+        $this->resetPage('scansPage');
+    }
+
+    public function updatedScanEtat(): void
+    {
+        $this->resetPage('scansPage');
+    }
+
+    /**
+     * Immobilisations scannées, avec le site attendu figé au démarrage.
+     * Par défaut, seuls les biens vus physiquement (présents et déplacés).
+     */
+    public function getScansDetailProperty(): LengthAwarePaginator
+    {
+        $recherche = trim($this->scanRecherche);
+        $statut = in_array($this->scanStatut, ['physiques', 'present', 'deplace', 'absent', 'tous'], true)
+            ? $this->scanStatut
+            : 'physiques';
+        $etat = in_array($this->scanEtat, ['neuf', 'bon_etat', 'defectueux'], true) ? $this->scanEtat : '';
+
+        return InventaireScan::query()
+            ->select('inventaire_scans.*')
+            ->addSelect([
+                'attendus.code_propose as code_fige',
+                'attendus.designation as designation_figee',
+                'attendus.site_nom as site_attendu',
+            ])
+            ->leftJoin('inventaire_immobilisations_attendues as attendus', function ($join): void {
+                $join->on('attendus.inventaire_id', '=', 'inventaire_scans.inventaire_id')
+                    ->on('attendus.immobilisation_id', '=', 'inventaire_scans.immobilisation_id');
+            })
+            ->leftJoin('immobilisations as immo', 'immo.id', '=', 'inventaire_scans.immobilisation_id')
+            ->leftJoin('designations as designation', 'designation.id', '=', 'immo.designation_id')
+            ->where('inventaire_scans.inventaire_id', $this->inventaire->id)
+            ->when($statut === 'physiques', fn ($query) => $query->where('inventaire_scans.statut_scan', '!=', 'absent'))
+            ->when(! in_array($statut, ['physiques', 'tous'], true), fn ($query) => $query->where('inventaire_scans.statut_scan', $statut))
+            ->when($etat !== '', fn ($query) => $query
+                ->where('inventaire_scans.etat_constate', $etat)
+                ->where('inventaire_scans.statut_scan', '!=', 'absent'))
+            ->when($recherche !== '', function ($query) use ($recherche): void {
+                $identifiant = preg_match('/^(?:GS)?(\d+)$/i', $recherche, $m) ? (int) $m[1] : null;
+                $motif = '%'.str_replace(['%', '_'], ['\%', '\_'], $recherche).'%';
+
+                $query->where(function ($sousRequete) use ($identifiant, $motif): void {
+                    $sousRequete->where('attendus.code_propose', 'like', $motif)
+                        ->orWhere('attendus.designation', 'like', $motif)
+                        ->orWhere('immo.code_propose', 'like', $motif)
+                        ->orWhere('designation.designation', 'like', $motif);
+
+                    if ($identifiant !== null) {
+                        $sousRequete->orWhere('inventaire_scans.immobilisation_id', $identifiant);
+                    }
+                });
+            })
+            ->with(['bien.designation', 'bien.site', 'siteReel', 'agent'])
+            ->orderByDesc('inventaire_scans.date_scan')
+            ->orderByDesc('inventaire_scans.id')
+            ->paginate(20, pageName: 'scansPage');
+    }
+
+    /**
+     * Avancement des sites : c'est l'unité de travail des agents.
+     *
+     * @return array{total: int, termines: int, en_cours: int, en_attente: int}
+     */
+    public function getStatistiquesSitesProperty(): array
+    {
+        $parStatut = InventaireSite::query()
+            ->whereIn('inventaire_localisation_id', $this->inventaire->inventaireLocalisations->pluck('id'))
+            ->selectRaw('statut, COUNT(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut');
+
+        return [
+            'total' => (int) $parStatut->sum(),
+            'termines' => (int) $parStatut->get('termine', 0),
+            'en_cours' => (int) $parStatut->get('en_cours', 0),
+            'en_attente' => (int) $parStatut->get('en_attente', 0),
         ];
     }
 
     /**
-     * Recalcule les biens attendus depuis les emplacements (opération coûteuse, exécutée une seule fois)
+     * Calcule les compteurs legacy depuis les sites sans modifier la base.
      */
-    private function recalculerBiensAttendus(): void
+    private function recalculerBiensAttendusEnMemoire(): void
     {
         foreach ($this->inventaire->inventaireLocalisations as $invLoc) {
             if ($invLoc->localisation && $invLoc->nombre_biens_attendus == 0) {
-                $nombreBiensAttendus = $invLoc->localisation->emplacements()
-                    ->withCount('immobilisations')
-                    ->get()
-                    ->sum('immobilisations_count');
-                
-                $invLoc->update(['nombre_biens_attendus' => $nombreBiensAttendus]);
+                $nombreBiensAttendus = $invLoc->localisation->immobilisations()->count();
+
+                $invLoc->setAttribute('nombre_biens_attendus', $nombreBiensAttendus);
             }
         }
     }
@@ -166,7 +233,7 @@ class DashboardInventaire extends Component
     public function getInventaireLocalisationsProperty()
     {
         $query = $this->inventaire->inventaireLocalisations()
-            ->with(['localisation', 'agent', 'agents']);
+            ->with(['localisation', 'agent', 'agents', 'inventaireSites.site']);
 
         // Filtre par statut
         if ($this->filterStatutLoc !== 'all') {
@@ -178,15 +245,15 @@ class DashboardInventaire extends Component
             $agentId = $this->filterAgent;
             $query->where(function ($q) use ($agentId) {
                 $q->where('user_id', $agentId)
-                  ->orWhereHas('agents', fn($sub) => $sub->where('users.idUser', $agentId));
+                    ->orWhereHas('agents', fn ($sub) => $sub->where('users.idUser', $agentId));
             });
         }
 
         // Recherche
-        if (!empty($this->searchLoc)) {
+        if (! empty($this->searchLoc)) {
             $query->whereHas('localisation', function ($q) {
-                $q->where('CodeLocalisation', 'like', '%' . $this->searchLoc . '%')
-                    ->orWhere('Localisation', 'like', '%' . $this->searchLoc . '%');
+                $q->where('code', 'like', '%'.$this->searchLoc.'%')
+                    ->orWhere('localisation', 'like', '%'.$this->searchLoc.'%');
             });
         }
 
@@ -196,7 +263,7 @@ class DashboardInventaire extends Component
 
         if ($this->sortField === 'code') {
             $results = $results->sortBy(function ($invLoc) {
-                return $invLoc->localisation->CodeLocalisation ?? $invLoc->localisation->Localisation ?? '';
+                return $invLoc->localisation->code ?? $invLoc->localisation->localisation ?? '';
             }, SORT_REGULAR, $isDesc);
         } elseif ($this->sortField === 'progression') {
             $results = $results->sortBy(function ($invLoc) {
@@ -212,9 +279,19 @@ class DashboardInventaire extends Component
     /**
      * Propriété calculée : Données pour le graphique progression temporelle
      */
-    public function getScansGraphDataProperty()
+    public function getScansGraphDataProperty(): array
     {
-        return $this->inventaire->inventaireScans()->orderBy('date_scan')->get();
+        return $this->inventaire->inventaireScans()
+            ->where('statut_scan', '!=', 'absent')
+            ->selectRaw('DATE(date_scan) as scan_date, COUNT(DISTINCT immobilisation_id) as total')
+            ->groupByRaw('DATE(date_scan)')
+            ->orderBy('scan_date')
+            ->get()
+            ->map(fn ($ligne): array => [
+                'date' => $ligne->scan_date,
+                'total' => (int) $ligne->total,
+            ])
+            ->all();
     }
 
     /**
@@ -245,7 +322,7 @@ class DashboardInventaire extends Component
      */
     public function getAgentsDisponiblesProperty()
     {
-        return User::whereIn('role', ['agent', 'admin_stock', 'admin'])
+        return User::whereIn('role', ['agent', 'admin'])
             ->orderBy('users')
             ->get();
     }
@@ -270,7 +347,7 @@ class DashboardInventaire extends Component
         $alertes = [
             'localisations_non_demarrees' => [],
             'localisations_bloquees' => [],
-            'biens_absents_valeur_haute' => [],
+            'biens_absents' => [],
             'biens_defectueux' => [],
             'localisations_non_assignees' => [],
         ];
@@ -280,12 +357,12 @@ class DashboardInventaire extends Component
             ->where('statut', 'en_attente')
             ->with('localisation')
             ->get();
-        
+
         foreach ($nonDemarrees as $invLoc) {
             $alertes['localisations_non_demarrees'][] = [
                 'id' => $invLoc->id,
-                'code' => $invLoc->localisation->CodeLocalisation ?? $invLoc->localisation->Localisation ?? 'N/A',
-                'designation' => $invLoc->localisation->Localisation ?? 'N/A',
+                'code' => $invLoc->localisation->code ?? $invLoc->localisation->localisation ?? 'N/A',
+                'designation' => $invLoc->localisation->localisation ?? 'N/A',
             ];
         }
 
@@ -297,23 +374,25 @@ class DashboardInventaire extends Component
                 $q->whereNull('date_debut_scan')
                     ->orWhere('date_debut_scan', '<', $ilY24h);
             })
+            ->whereDoesntHave('inventaireScans', fn ($query) => $query
+                ->where('date_scan', '>=', $ilY24h))
             ->with('localisation')
             ->get();
-        
+
         foreach ($bloquees as $invLoc) {
             $dernierScan = $this->inventaire->inventaireScans()
                 ->where('inventaire_localisation_id', $invLoc->id)
                 ->orderBy('date_scan', 'desc')
                 ->first();
-            
-            $joursSansScan = $dernierScan 
+
+            $joursSansScan = $dernierScan
                 ? $dernierScan->date_scan->diffInDays(now())
                 : ($invLoc->date_debut_scan ? $invLoc->date_debut_scan->diffInDays(now()) : 0);
-            
+
             $alertes['localisations_bloquees'][] = [
                 'id' => $invLoc->id,
-                'code' => $invLoc->localisation->CodeLocalisation ?? $invLoc->localisation->Localisation ?? 'N/A',
-                'designation' => $invLoc->localisation->Localisation ?? 'N/A',
+                'code' => $invLoc->localisation->code ?? $invLoc->localisation->localisation ?? 'N/A',
+                'designation' => $invLoc->localisation->localisation ?? 'N/A',
                 'jours' => $joursSansScan,
             ];
         }
@@ -324,28 +403,27 @@ class DashboardInventaire extends Component
             ->with('bien.designation')
             ->limit(10)
             ->get();
-        
+
         foreach ($biensAbsents as $scan) {
-            $alertes['biens_absents_valeur_haute'][] = [
-                'bien_id' => $scan->bien_id,
+            $alertes['biens_absents'][] = [
+                'immobilisation_id' => $scan->immobilisation_id,
                 'code' => $scan->code_inventaire,
                 'designation' => $scan->designation,
-                'valeur' => 0,
             ];
         }
 
         // Biens défectueux (etat_constate = defectueux, signalés via PWA)
         $biensDefectueux = $this->inventaire->inventaireScans()
             ->where('etat_constate', 'defectueux')
-            ->with(['gesimmo.designation', 'localisationReelle'])
+            ->with(['bien.designation', 'localisationReelle'])
             ->get();
-        
+
         foreach ($biensDefectueux as $scan) {
             $alertes['biens_defectueux'][] = [
-                'bien_id' => $scan->bien_id,
+                'immobilisation_id' => $scan->immobilisation_id,
                 'code' => $scan->code_inventaire,
                 'designation' => $scan->designation,
-                'localisation' => $scan->localisationReelle?->CodeLocalisation ?? $scan->localisationReelle?->Localisation ?? 'N/A',
+                'localisation' => $scan->localisationReelle?->code ?? $scan->localisationReelle?->localisation ?? 'N/A',
                 'photo_url' => $scan->photo_url,
                 'commentaire' => $scan->commentaire,
             ];
@@ -357,12 +435,12 @@ class DashboardInventaire extends Component
             ->whereDoesntHave('agents')
             ->with('localisation')
             ->get();
-        
+
         foreach ($nonAssignees as $invLoc) {
             $alertes['localisations_non_assignees'][] = [
                 'id' => $invLoc->id,
-                'code' => $invLoc->localisation->CodeLocalisation ?? $invLoc->localisation->Localisation ?? 'N/A',
-                'designation' => $invLoc->localisation->Localisation ?? 'N/A',
+                'code' => $invLoc->localisation->code ?? $invLoc->localisation->localisation ?? 'N/A',
+                'designation' => $invLoc->localisation->localisation ?? 'N/A',
             ];
         }
 
@@ -377,30 +455,33 @@ class DashboardInventaire extends Component
     {
         // Compter rapidement sans recalculer toutes les alertes en détail
         $total = 0;
-        
+
         $total += $this->inventaire->inventaireLocalisations()
             ->where('statut', 'en_attente')->count();
-        
+
         $ilY24h = now()->subDay();
         $total += $this->inventaire->inventaireLocalisations()
             ->where('statut', 'en_cours')
             ->where(function ($q) use ($ilY24h) {
                 $q->whereNull('date_debut_scan')
                     ->orWhere('date_debut_scan', '<', $ilY24h);
-            })->count();
-        
+            })
+            ->whereDoesntHave('inventaireScans', fn ($query) => $query
+                ->where('date_scan', '>=', $ilY24h))
+            ->count();
+
         $total += $this->inventaire->inventaireScans()
             ->where('statut_scan', 'absent')
             ->count();
-        
+
         $total += $this->inventaire->inventaireScans()
             ->where('etat_constate', 'defectueux')->count();
-        
+
         $total += $this->inventaire->inventaireLocalisations()
             ->whereNull('user_id')
             ->whereDoesntHave('agents')
             ->count();
-        
+
         return $total;
     }
 
@@ -424,9 +505,9 @@ class DashboardInventaire extends Component
         $this->inventaire->load([
             'inventaireLocalisations.localisation',
             'inventaireLocalisations.agent',
-            'inventaireScans'
+            'inventaireScans',
         ]);
-        
+
         // Émettre un événement pour l'indicateur visuel
         $this->dispatch('statistiques-updated');
     }
@@ -436,22 +517,24 @@ class DashboardInventaire extends Component
      */
     public function passerEnCours(): void
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Seuls les administrateurs peuvent démarrer un inventaire.');
+
             return;
         }
 
         if ($this->inventaire->statut !== 'en_preparation') {
             session()->flash('error', 'Seuls les inventaires en préparation peuvent être démarrés.');
+
             return;
         }
 
         try {
-            $this->inventaire->demarrer();
+            app(InventaireService::class)->demarrerInventaire($this->inventaire, Auth::user());
             $this->inventaire->refresh();
             session()->flash('success', "L'inventaire {$this->inventaire->annee} a été démarré avec succès.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors du démarrage: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors du démarrage.'));
         }
     }
 
@@ -460,8 +543,9 @@ class DashboardInventaire extends Component
      */
     public function terminerInventaire(): void
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Seuls les administrateurs peuvent terminer un inventaire.');
+
             return;
         }
 
@@ -472,18 +556,16 @@ class DashboardInventaire extends Component
 
         if ($localisationsNonTerminees > 0) {
             session()->flash('error', "Toutes les localisations doivent être terminées avant de terminer l'inventaire. {$localisationsNonTerminees} localisation(s) restante(s).");
+
             return;
         }
 
         try {
-            $this->inventaire->update([
-                'statut' => 'termine',
-                'date_fin' => now(),
-            ]);
+            app(InventaireService::class)->terminerInventaire($this->inventaire, Auth::user());
             $this->inventaire->refresh();
             session()->flash('success', "L'inventaire {$this->inventaire->annee} a été terminé avec succès.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la finalisation: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la finalisation.'));
         }
     }
 
@@ -492,22 +574,25 @@ class DashboardInventaire extends Component
      */
     public function cloturerInventaire()
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Seuls les administrateurs peuvent clôturer un inventaire.');
+
             return;
         }
 
         if ($this->inventaire->statut !== 'termine') {
             session()->flash('error', 'Seuls les inventaires terminés peuvent être clôturés.');
+
             return;
         }
 
         try {
-            $this->inventaire->cloturer();
+            app(InventaireService::class)->cloturerInventaire($this->inventaire, Auth::user());
             session()->flash('success', "L'inventaire {$this->inventaire->annee} a été clôturé définitivement.");
+
             return redirect()->route('inventaires.rapport', $this->inventaire);
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la clôture: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la clôture.'));
         }
     }
 
@@ -516,28 +601,30 @@ class DashboardInventaire extends Component
      */
     public function reassignerLocalisation($invLocId, $userId): void
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Seuls les administrateurs peuvent réassigner des localisations.');
+
             return;
         }
 
         $invLoc = InventaireLocalisation::find($invLocId);
 
-        if (!$invLoc || $invLoc->inventaire_id !== $this->inventaire->id) {
+        if (! $invLoc || $invLoc->inventaire_id !== $this->inventaire->id) {
             session()->flash('error', 'Localisation introuvable.');
+
             return;
         }
 
         try {
-            $invLoc->update([
-                'user_id' => $userId ?: null,
-            ]);
-            if ($userId) {
-                $invLoc->agents()->syncWithoutDetaching([(int) $userId]);
-            }
+            $newAgent = $userId ? User::findOrFail((int) $userId) : null;
+            app(InventaireService::class)->reassignerLocalisation(
+                $invLoc,
+                $newAgent,
+                Auth::user(),
+            );
             session()->flash('success', 'Localisation réassignée avec succès.');
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la réassignation: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la réassignation.'));
         }
     }
 
@@ -546,34 +633,27 @@ class DashboardInventaire extends Component
      */
     public function toggleAgentLocalisation($invLocId, $userId): void
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Seuls les administrateurs peuvent modifier les assignations.');
+
             return;
         }
 
         $invLoc = InventaireLocalisation::with('agents')->find($invLocId);
 
-        if (!$invLoc || $invLoc->inventaire_id !== $this->inventaire->id) {
+        if (! $invLoc || $invLoc->inventaire_id !== $this->inventaire->id) {
             session()->flash('error', 'Localisation introuvable.');
+
             return;
         }
 
         try {
-            $userId = (int) $userId;
-            $isCurrentlyAssigned = $invLoc->agents->contains('idUser', $userId);
-
-            if ($isCurrentlyAssigned) {
-                $invLoc->agents()->detach($userId);
-                if ($invLoc->user_id === $userId) {
-                    $remaining = $invLoc->agents()->first();
-                    $invLoc->update(['user_id' => $remaining?->idUser]);
-                }
-            } else {
-                $invLoc->agents()->attach($userId);
-                if (!$invLoc->user_id) {
-                    $invLoc->update(['user_id' => $userId]);
-                }
-            }
+            $agent = User::findOrFail((int) $userId);
+            app(InventaireService::class)->basculerAgentLocalisation(
+                $invLoc,
+                $agent,
+                Auth::user(),
+            );
 
             $this->inventaire->load([
                 'inventaireLocalisations.localisation',
@@ -581,7 +661,7 @@ class DashboardInventaire extends Component
                 'inventaireLocalisations.agents',
             ]);
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Une erreur est survenue.'));
         }
     }
 
@@ -590,6 +670,10 @@ class DashboardInventaire extends Component
      */
     public function sortBy($field): void
     {
+        if (! in_array($field, ['code', 'progression'], true)) {
+            return;
+        }
+
         if ($this->sortField === $field) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
@@ -608,6 +692,39 @@ class DashboardInventaire extends Component
         $this->activeAgentDropdown = null;
     }
 
+    public function toggleSitesPanel($invLocId): void
+    {
+        $this->activeSitesPanel = $this->activeSitesPanel === $invLocId ? null : $invLocId;
+    }
+
+    /**
+     * Rouvre un site terminé par erreur pour qu'il puisse être rescanné
+     */
+    public function rouvrirSite($inventaireSiteId): void
+    {
+        if (! Auth::user()->isAdmin()) {
+            session()->flash('error', 'Seuls les administrateurs peuvent rouvrir un site.');
+
+            return;
+        }
+
+        $inventaireSite = InventaireSite::with(['inventaireLocalisation', 'site'])->find($inventaireSiteId);
+
+        if (! $inventaireSite || $inventaireSite->inventaireLocalisation?->inventaire_id !== $this->inventaire->id) {
+            session()->flash('error', 'Site introuvable.');
+
+            return;
+        }
+
+        try {
+            app(SiteScanService::class)->rouvrir($inventaireSite, Auth::user());
+            $this->inventaire->refresh();
+            session()->flash('success', "Le site {$inventaireSite->site?->site} a été rouvert : ses biens peuvent être scannés à nouveau.");
+        } catch (\Exception $e) {
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la réouverture du site.'));
+        }
+    }
+
     /**
      * Rendu du composant
      */
@@ -616,5 +733,3 @@ class DashboardInventaire extends Component
         return view('livewire.inventaires.dashboard-inventaire');
     }
 }
-
-

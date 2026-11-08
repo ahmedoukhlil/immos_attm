@@ -1,5 +1,7 @@
 import JsBarcode from 'jsbarcode';
 
+window.JsBarcode = JsBarcode;
+
 /**
  * Génère un code-barres Code 128 avec jsbarcode
  * @param {string} codeValue - La valeur du code à encoder

@@ -113,8 +113,8 @@ locator: {
 
 ```json
 {
-  "name": "Inventaire Pro - Scanner v2",
-  "short_name": "Scanner v2",
+  "name": "Inventaire mobile",
+  "short_name": "Inventaire",
   "start_url": "/pwa/index-v2.html",
   "display": "standalone",
   "orientation": "portrait-primary",

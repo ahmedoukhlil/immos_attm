@@ -29,13 +29,19 @@
                 @endif
             </p>
         </div>
-        @if($isAdmin)
+        @if($isAdmin && !$inventaireActif)
             <a
                 href="{{ route('inventaires.create') }}"
                 class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                 Nouvel inventaire
             </a>
+        @elseif($isAdmin)
+            <button type="button" disabled title="Terminez ou clôturez l’inventaire actif avant d’en créer un autre"
+                class="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-gray-200 px-4 py-2.5 text-sm font-medium text-gray-500">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Inventaire actif en cours
+            </button>
         @endif
     </div>
 
@@ -246,10 +252,12 @@
                                 @endif
                                 @if($inventaire->date_debut)
                                     @php
-                                        $duree = \Carbon\Carbon::parse($inventaire->date_debut)->diffInDays($inventaire->date_fin ?? now());
+                                        $debut = $inventaire->started_at ?? $inventaire->date_debut;
+                                        $fin = $inventaire->finished_at ?? $inventaire->date_fin ?? now();
+                                        $duree = $debut ? (int) floor(\Carbon\Carbon::parse($debut)->diffInDays($fin)) : 0;
                                     @endphp
                                     <div class="text-center" title="Durée">
-                                        <p class="font-bold text-gray-700">{{ $duree }}j</p>
+                                        <p class="font-bold text-gray-700">{{ $duree }} {{ $duree > 1 ? 'jours' : 'jour' }}</p>
                                         <p class="text-gray-400">durée</p>
                                     </div>
                                 @endif
@@ -290,7 +298,8 @@
                                 {{-- Clôturer --}}
                                 @if($inventaire->statut === 'termine')
                                     <button
-                                        x-on:click="if(confirm('Clôturer l\'inventaire {{ $inventaire->annee }} ? Cette action est définitive.')) { $wire.archiverInventaire({{ $inventaire->id }}); }"
+                                        wire:click="archiverInventaire({{ $inventaire->id }})"
+                                        wire:confirm="Clôturer l'inventaire {{ $inventaire->annee }} ? Cette action est définitive."
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                                         Clôturer
@@ -299,17 +308,20 @@
 
                                 {{-- Exporter PDF --}}
                                 @if(in_array($inventaire->statut, ['termine', 'cloture']))
-                                    <a
-                                        href="{{ route('inventaires.export-pdf', $inventaire) }}"
+                                    <form method="POST" action="{{ route('inventaires.export-pdf', $inventaire) }}">
+                                        @csrf
+                                    <button type="submit"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                         PDF
-                                    </a>
+                                    </button>
+                                    </form>
                                 @endif
 
                                 {{-- Supprimer --}}
                                 <button
-                                    x-on:click="if(confirm('Supprimer l\'inventaire {{ $inventaire->annee }} ? Toutes les données seront définitivement perdues.')) { $wire.supprimerInventaire({{ $inventaire->id }}); }"
+                                    wire:click="supprimerInventaire({{ $inventaire->id }})"
+                                    wire:confirm="Supprimer l'inventaire {{ $inventaire->annee }} ? Toutes les données seront définitivement perdues."
                                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     Supprimer
@@ -439,7 +451,7 @@
                                 {{-- Info localisation --}}
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2">
-                                        <p class="text-sm font-medium text-gray-900 truncate">{{ $invLoc->localisation->Localisation ?? 'N/A' }}</p>
+                                        <p class="text-sm font-medium text-gray-900 truncate">{{ $invLoc->localisation->localisation ?? 'N/A' }}</p>
                                         @php
                                             $statCfg = [
                                                 'en_attente' => 'bg-gray-100 text-gray-600',

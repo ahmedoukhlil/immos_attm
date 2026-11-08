@@ -35,7 +35,7 @@
                     <input 
                         type="text" 
                         wire:model.live.debounce.300ms="search"
-                        placeholder="Ordre, emplacement, raison..."
+                        placeholder="Ordre, site, raison..."
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                 </div>
@@ -94,8 +94,8 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Immobilisation</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ancien emplacement</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nouvel emplacement</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ancien site</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nouveau site</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raison</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Par</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Groupe</th>
@@ -108,26 +108,24 @@
                                     {{ $transfert->date_transfert->format('d/m/Y H:i') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    Ordre: {{ $transfert->NumOrdre }}
+                                    {{ $transfert->immobilisation?->code_formate ?? 'GS'.$transfert->immobilisation_id }}
                                     @if($transfert->immobilisation && $transfert->immobilisation->designation)
-                                        <br><span class="text-xs text-gray-500">{{ $transfert->immobilisation->designation->Designation }}</span>
+                                        <br><span class="text-xs text-gray-500">{{ $transfert->immobilisation->libelle_article }}</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-900">
                                     <div class="space-y-1">
-                                        <div class="font-medium">{{ $transfert->ancien_emplacement_libelle ?? 'Sans emplacement' }}</div>
+                                        <div class="font-medium">{{ $transfert->ancien_site_libelle ?? 'Sans site' }}</div>
                                         <div class="text-xs text-gray-500">
-                                            {{ $transfert->ancien_affectation_libelle ?? 'N/A' }} 
-                                            → {{ $transfert->ancien_localisation_libelle ?? 'N/A' }}
+                                            {{ $transfert->ancien_localisation_libelle ?? 'N/A' }}
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-900">
                                     <div class="space-y-1">
-                                        <div class="font-medium text-indigo-600">{{ $transfert->nouveau_emplacement_libelle }}</div>
+                                        <div class="font-medium text-indigo-600">{{ $transfert->nouveau_site_libelle }}</div>
                                         <div class="text-xs text-gray-500">
-                                            {{ $transfert->nouveau_affectation_libelle }} 
-                                            → {{ $transfert->nouveau_localisation_libelle }}
+                                            {{ $transfert->nouveau_localisation_libelle }}
                                         </div>
                                     </div>
                                 </td>

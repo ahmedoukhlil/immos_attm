@@ -2,26 +2,34 @@
 
 namespace App\Livewire\Designations;
 
-use App\Models\Designation;
+use App\Livewire\Traits\WithSafeTableControls;
 use App\Models\Categorie;
+use App\Models\Designation;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Livewire\Attributes\Layout;
 
 #[Layout('components.layouts.app')]
 
 class ListeDesignations extends Component
 {
-    use WithPagination;
+    use WithPagination, WithSafeTableControls;
+
+    private const SORT_FIELDS = ['designation', 'categorie'];
 
     /**
      * Propriétés publiques pour les filtres et la recherche
      */
     public $search = '';
+
     public $filterCategorie = '';
+
     public $sortField = 'designation';
+
     public $sortDirection = 'asc';
+
     public $perPage = 20;
+
     public $selectedDesignations = [];
 
     /**
@@ -37,7 +45,7 @@ class ListeDesignations extends Component
      */
     public function getCategoriesProperty()
     {
-        return Categorie::orderBy('Categorie')->get();
+        return Categorie::orderBy('categorie')->get();
     }
 
     /**
@@ -49,28 +57,31 @@ class ListeDesignations extends Component
             ->withCount('immobilisations');
 
         // Recherche globale
-        if (!empty($this->search)) {
-            $query->where(function($q) {
-                $q->where('designation', 'like', '%' . $this->search . '%')
-                  ->orWhere('CodeDesignation', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('categorie', function($q) {
-                      $q->where('Categorie', 'like', '%' . $this->search . '%');
-                  });
+        if (! empty($this->search)) {
+            $query->where(function ($q) {
+                $q->where('designation', 'like', '%'.$this->search.'%')
+                    ->orWhere('code', 'like', '%'.$this->search.'%')
+                    ->orWhereHas('categorie', function ($q) {
+                        $q->where('categorie', 'like', '%'.$this->search.'%');
+                    });
             });
         }
 
         // Filtre par catégorie
-        if (!empty($this->filterCategorie)) {
-            $query->where('idCat', $this->filterCategorie);
+        if (! empty($this->filterCategorie)) {
+            $query->where('categorie_id', $this->filterCategorie);
         }
 
         // Tri
-        if ($this->sortField === 'categorie') {
-            $query->join('categorie', 'designation.idCat', '=', 'categorie.idCategorie')
-                  ->orderBy('categorie.Categorie', $this->sortDirection)
-                  ->select('designation.*');
+        $sortField = $this->resolveSortField(self::SORT_FIELDS, 'designation');
+        $sortDirection = $this->resolveSortDirection();
+
+        if ($sortField === 'categorie') {
+            $query->join('categories', 'designations.categorie_id', '=', 'categories.id')
+                ->orderBy('categories.categorie', $sortDirection)
+                ->select('designations.*');
         } else {
-            $query->orderBy($this->sortField, $this->sortDirection);
+            $query->orderBy($sortField, $sortDirection);
         }
 
         return $query;
@@ -81,13 +92,7 @@ class ListeDesignations extends Component
      */
     public function sortBy($field)
     {
-        if ($this->sortField === $field) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortField = $field;
-            $this->sortDirection = 'asc';
-        }
-        $this->resetPage();
+        $this->changeSort((string) $field, self::SORT_FIELDS);
     }
 
     /**
@@ -105,16 +110,20 @@ class ListeDesignations extends Component
      */
     public function deleteDesignation($designationId)
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $designation = Designation::find($designationId);
-        
-        if (!$designation) {
+
+        if (! $designation) {
             session()->flash('error', 'Désignation introuvable.');
+
             return;
         }
 
         // Vérifier si la désignation est utilisée
         if ($designation->immobilisations()->count() > 0) {
             session()->flash('error', 'Cette désignation ne peut pas être supprimée car elle est utilisée par des immobilisations.');
+
             return;
         }
 
@@ -127,7 +136,7 @@ class ListeDesignations extends Component
      */
     public function render()
     {
-        $designations = $this->getDesignationsQuery()->paginate($this->perPage);
+        $designations = $this->getDesignationsQuery()->paginate($this->resolvePageSize());
         $totalDesignations = Designation::count();
 
         return view('livewire.designations.liste-designations', [

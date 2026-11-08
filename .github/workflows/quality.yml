@@ -1,0 +1,54 @@
+name: Qualite
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, fileinfo, gd, pdo_sqlite, simplexml, xml, xmlreader, xmlwriter, zip
+          coverage: none
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Installer les dependances PHP
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Preparer Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Verifier les migrations sur une base vierge
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ${{ github.workspace }}/database/ci.sqlite
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+        run: |
+          touch database/ci.sqlite
+          php artisan migrate:fresh --force --no-interaction
+
+      - name: Executer les tests PHP
+        run: php artisan test
+
+      - name: Installer les dependances JavaScript
+        run: npm ci
+
+      - name: Construire les assets
+        run: npm run build

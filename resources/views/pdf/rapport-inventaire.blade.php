@@ -35,7 +35,7 @@
 
         h1 { font-size: 12pt; font-weight: bold; color: #1e293b; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; margin: 18px 0 10px 0; page-break-after: avoid; }
 
-        /* Emplacement block */
+        /* Site block */
         .emp-block { margin-bottom: 14px; page-break-inside: avoid; }
         .emp-header { background: #1e293b; color: white; padding: 6px 10px; font-size: 9pt; font-weight: bold; }
         .emp-header span { font-weight: normal; font-size: 8pt; color: #94a3b8; }
@@ -93,7 +93,7 @@
     <div class="cover-page">
         <div class="cover-title">Rapport de Rapprochement</div>
         <div class="cover-title" style="font-size:14pt;">Inventaire {{ $inventaire->annee }}</div>
-        <div class="cover-subtitle">{{ $inventaire->date_debut->format('d/m/Y') }} — {{ $inventaire->date_fin ? $inventaire->date_fin->format('d/m/Y') : 'En cours' }}</div>
+        <div class="cover-subtitle">{{ ($inventaire->started_at ?? $inventaire->date_debut)->format('d/m/Y') }} — {{ ($inventaire->finished_at ?? $inventaire->date_fin)?->format('d/m/Y') ?? 'En cours' }}</div>
 
         @php
             $taux = $statistiques['taux_conformite'] ?? 0;
@@ -130,8 +130,9 @@
             @if($inventaire->closer)
             <p><strong>Clôturé par :</strong> {{ $inventaire->closer->users ?? 'N/A' }}</p>
             @endif
-            <p><strong>Emplacements inventoriés :</strong> {{ count($detailParEmplacement ?? []) }}</p>
-            <p><strong>Couverture :</strong> {{ $statistiques['taux_couverture'] ?? 0 }}%</p>
+            <p><strong>Sites inventoriés :</strong> {{ count($detailParSite ?? []) }}</p>
+            <p><strong>Rapprochement :</strong> {{ $statistiques['taux_rapprochement'] ?? 0 }}%</p>
+            <p><strong>Couverture physique :</strong> {{ $statistiques['taux_couverture'] ?? 0 }}%</p>
         </div>
     </div>
 
@@ -140,19 +141,19 @@
         <h1>Sommaire</h1>
         <ul>
             <li><strong>1.</strong> Synthèse globale</li>
-            <li><strong>2.</strong> Rapprochement par emplacement ({{ count($detailParEmplacement ?? []) }} emplacements)</li>
+            <li><strong>2.</strong> Rapprochement par site ({{ count($detailParSite ?? []) }} sites)</li>
             <li><strong>3.</strong> Anomalies et recommandations</li>
         </ul>
 
-        @if(count($detailParEmplacement ?? []) > 0)
-        <h1 style="margin-top: 20px; font-size: 10pt;">Index des emplacements</h1>
+        @if(count($detailParSite ?? []) > 0)
+        <h1 style="margin-top: 20px; font-size: 10pt;">Index des sites</h1>
         <table class="rapport" style="font-size: 7.5pt;">
             <thead>
                 <tr>
                     <th style="width: 5%;">#</th>
-                    <th style="width: 20%;">Emplacement</th>
+                    <th style="width: 20%;">Site</th>
                     <th style="width: 20%;">Localisation</th>
-                    <th style="width: 15%;">Affectation</th>
+                    <th style="width: 15%;">Responsable</th>
                     <th class="text-center" style="width: 8%;">Attendus</th>
                     <th class="text-center" style="width: 8%;">Trouvés</th>
                     <th class="text-center" style="width: 8%;">Manquants</th>
@@ -161,7 +162,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($detailParEmplacement as $i => $emp)
+                @foreach($detailParSite as $i => $emp)
                 @php
                     $txClass = $emp['taux_conformite'] >= 90 ? 'val-green' : ($emp['taux_conformite'] >= 70 ? 'val-orange' : 'val-red');
                 @endphp
@@ -169,7 +170,7 @@
                     <td class="text-center">{{ $i + 1 }}</td>
                     <td><strong>{{ $emp['designation'] }}</strong></td>
                     <td>{{ $emp['localisation'] }}</td>
-                    <td>{{ $emp['affectation'] ?? '-' }}</td>
+                    <td>{{ $emp['responsable'] ?? '-' }}</td>
                     <td class="text-center">{{ $emp['total_attendus'] }}</td>
                     <td class="text-center">{{ $emp['total_trouves'] }}</td>
                     <td class="text-center">{{ $emp['total_manquants'] }}</td>
@@ -208,21 +209,23 @@
 
     <p style="font-size: 8pt; margin-bottom: 10px;">
         <strong>Taux de conformité :</strong> {{ number_format($statistiques['taux_conformite'] ?? 0, 1) }}% |
-        <strong>Taux de couverture :</strong> {{ $statistiques['taux_couverture'] ?? 0 }}% |
+        <strong>Rapprochement :</strong> {{ $statistiques['taux_rapprochement'] ?? 0 }}% |
+        <strong>Couverture physique :</strong> {{ $statistiques['taux_couverture'] ?? 0 }}% |
+        <strong>Anomalies uniques :</strong> {{ $statistiques['taux_anomalies'] ?? 0 }}% |
         <strong>Biens défectueux :</strong> {{ $statistiques['biens_defectueux'] ?? 0 }}
     </p>
 
-    {{-- ========== SECTION 2: RAPPROCHEMENT PAR EMPLACEMENT ========== --}}
+    {{-- ========== SECTION 2: RAPPROCHEMENT PAR SITE ========== --}}
     <div class="page-break"></div>
-    <h1>2. Rapprochement par emplacement</h1>
+    <h1>2. Rapprochement par site</h1>
 
-    @php $detailParEmplacement = $detailParEmplacement ?? []; @endphp
-    @if(count($detailParEmplacement) > 0)
-        @foreach($detailParEmplacement as $idx => $emp)
+    @php $detailParSite = $detailParSite ?? []; @endphp
+    @if(count($detailParSite) > 0)
+        @foreach($detailParSite as $idx => $emp)
         <div class="emp-block">
             <div class="emp-header">
                 {{ $emp['designation'] }} — {{ $emp['localisation'] }}
-                <span> | {{ $emp['affectation'] ?? '' }} | Code: {{ $emp['code'] }}</span>
+                <span> | {{ $emp['responsable'] ?? '' }} | Code: {{ $emp['code'] }}</span>
             </div>
             <div class="emp-summary">
                 Attendus : <strong>{{ $emp['total_attendus'] }}</strong> |
@@ -276,7 +279,7 @@
                     {{-- Séparateur si biens déplacés trouvés ici --}}
                     @if(count($emp['lignes_deplaces']) > 0)
                     <tr class="deplace-separator">
-                        <td colspan="7">▸ Biens déplacés trouvés dans cet emplacement ({{ count($emp['lignes_deplaces']) }})</td>
+                        <td colspan="7">▸ Biens déplacés trouvés dans ce site ({{ count($emp['lignes_deplaces']) }})</td>
                     </tr>
                     @foreach($emp['lignes_deplaces'] as $ligne)
                     @php
@@ -301,18 +304,18 @@
                 </tbody>
             </table>
             @else
-            <p style="font-size: 7.5pt; color: #94a3b8; padding: 6px 10px; font-style: italic;">Aucune immobilisation dans cet emplacement.</p>
+            <p style="font-size: 7.5pt; color: #94a3b8; padding: 6px 10px; font-style: italic;">Aucune immobilisation dans ce site.</p>
             @endif
         </div>
 
-        {{-- Saut de page tous les 3 emplacements pour lisibilité --}}
-        @if(($idx + 1) % 2 === 0 && $idx + 1 < count($detailParEmplacement))
+        {{-- Saut de page tous les 3 sites pour lisibilité --}}
+        @if(($idx + 1) % 2 === 0 && $idx + 1 < count($detailParSite))
         <div class="page-break"></div>
         @endif
         @endforeach
     @else
     <div class="anomalies-warning">
-        <p>Aucun emplacement inventorié. Vérifiez que les scans ont été effectués via la PWA.</p>
+        <p>Aucun site inventorié. Vérifiez que les scans ont été effectués via la PWA.</p>
     </div>
     @endif
 

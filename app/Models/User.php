@@ -3,17 +3,18 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    /** @use HasFactory<UserFactory> */
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Nom de la table
@@ -85,22 +86,13 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            // Pas de cast 'hashed' car les mots de passe peuvent être en clair dans la base existante
+            'mdp' => 'hashed',
         ];
     }
 
     /**
      * RELATIONS
      */
-
-    /**
-     * Relation avec les immobilisations (Gesimmo) créées par l'utilisateur
-     * Note: Cette relation peut nécessiter une colonne user_id dans la table gesimmo
-     */
-    public function immobilisations(): HasMany
-    {
-        return $this->hasMany(Gesimmo::class, 'user_id', 'idUser');
-    }
 
     /**
      * Relation avec les inventaires créés par l'utilisateur
@@ -135,22 +127,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Relation avec les entrées de stock créées par l'utilisateur
-     */
-    public function stockEntrees(): HasMany
-    {
-        return $this->hasMany(\App\Models\StockEntree::class, 'created_by', 'idUser');
-    }
-
-    /**
-     * Relation avec les sorties de stock créées par l'utilisateur
-     */
-    public function stockSorties(): HasMany
-    {
-        return $this->hasMany(\App\Models\StockSortie::class, 'created_by', 'idUser');
-    }
-
-    /**
      * SCOPES
      */
 
@@ -160,14 +136,6 @@ class User extends Authenticatable
     public function scopeAdmins(Builder $query): Builder
     {
         return $query->where('role', 'admin');
-    }
-
-    /**
-     * Scope pour filtrer les administrateurs stock
-     */
-    public function scopeAdminStocks(Builder $query): Builder
-    {
-        return $query->where('role', 'admin_stock');
     }
 
     /**
@@ -195,9 +163,8 @@ class User extends Authenticatable
      */
     public function getRoleNameAttribute(): string
     {
-        return match($this->role) {
+        return match ($this->role) {
             'admin' => 'Administrateur',
-            'admin_stock' => 'Admin Stock',
             'agent' => 'Agent',
             default => 'Non défini',
         };
@@ -216,14 +183,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Vérifie si l'utilisateur est administrateur stock
-     */
-    public function isAdminStock(): bool
-    {
-        return $this->role === 'admin_stock';
-    }
-
-    /**
      * Vérifie si l'utilisateur est agent
      */
     public function isAgent(): bool
@@ -233,7 +192,8 @@ class User extends Authenticatable
 
     /**
      * Vérifie si l'utilisateur peut gérer les inventaires
-     * Admin et Agent peuvent gérer les inventaires
+     * Les administrateurs préparent et clôturent les inventaires. Les agents
+     * exécutent uniquement les opérations terrain qui leur sont affectées.
      */
     public function canManageInventaire(): bool
     {
@@ -242,52 +202,9 @@ class User extends Authenticatable
 
     /**
      * Trouve un utilisateur par son nom d'utilisateur
-     * Gère automatiquement les différences de structure entre environnements
-     * 
-     * @param string $username
-     * @return User|null
      */
     public static function findByUsername(string $username): ?self
     {
-        // Essayer avec la colonne 'users' (structure attendue)
-        try {
-            return static::where('users', $username)->first();
-        } catch (\Exception $e) {
-            // Si ça échoue, essayer avec DB::table directement
-            try {
-                $userData = \DB::table('users')
-                    ->where('users', $username)
-                    ->first();
-                
-                if ($userData) {
-                    $userId = $userData->idUser ?? $userData->id ?? null;
-                    return $userId ? static::find($userId) : null;
-                }
-            } catch (\Exception $e2) {
-                // Dernière tentative avec SQL brut
-                try {
-                    $userData = \DB::selectOne(
-                        'SELECT * FROM users WHERE users = ? LIMIT 1',
-                        [$username]
-                    );
-                    
-                    if ($userData) {
-                        $userId = $userData->idUser ?? $userData->id ?? null;
-                        return $userId ? static::find($userId) : null;
-                    }
-                } catch (\Exception $e3) {
-                    \Log::error('Erreur lors de la recherche d\'utilisateur', [
-                        'username' => $username,
-                        'errors' => [
-                            'eloquent' => $e->getMessage(),
-                            'query_builder' => $e2->getMessage(),
-                            'raw_sql' => $e3->getMessage()
-                        ]
-                    ]);
-                }
-            }
-        }
-        
-        return null;
+        return static::query()->where('users', $username)->first();
     }
 }

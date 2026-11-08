@@ -16,12 +16,12 @@
             'defectueux' => ['label' => 'Defectueux', 'color' => 'bg-amber-100 text-amber-800'],
         ];
         $conformiteInterpretation = function($taux) {
-            if ($taux >= 95) return ['label' => 'Excellent', 'color' => 'text-green-600', 'bg' => 'bg-green-50'];
-            if ($taux >= 85) return ['label' => 'Bon', 'color' => 'text-blue-600', 'bg' => 'bg-blue-50'];
-            if ($taux >= 70) return ['label' => 'Moyen', 'color' => 'text-orange-600', 'bg' => 'bg-orange-50'];
-            return ['label' => 'Insuffisant', 'color' => 'text-red-600', 'bg' => 'bg-red-50'];
+            if ($taux >= 90) return ['label' => 'Conforme', 'color' => 'text-green-600', 'bg' => 'bg-green-50'];
+            if ($taux >= 70) return ['label' => 'À améliorer', 'color' => 'text-orange-600', 'bg' => 'bg-orange-50'];
+            return ['label' => 'Non conforme', 'color' => 'text-red-600', 'bg' => 'bg-red-50'];
         };
         $interpretation = $conformiteInterpretation($this->statistiques['taux_conformite']);
+        $recentExports = $this->exports;
     @endphp
 
     {{-- Header simplifié --}}
@@ -37,31 +37,35 @@
                     </span>
                 </div>
                 <p class="text-sm text-gray-600">
-                    Du {{ $inventaire->date_debut->format('d/m/Y') }}
-                    @if($inventaire->date_fin)
-                        au {{ $inventaire->date_fin->format('d/m/Y') }}
+                    Du {{ ($inventaire->started_at ?? $inventaire->date_debut)->format('d/m/Y') }}
+                    @if($inventaire->finished_at || $inventaire->date_fin)
+                        au {{ ($inventaire->finished_at ?? $inventaire->date_fin)->format('d/m/Y') }}
                     @endif
                     • {{ $this->statistiques['duree_jours'] }} jour(s)
                 </p>
             </div>
             
             <div class="flex flex-wrap items-center gap-2">
-                <button 
-                    wire:click="exportPDF"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    PDF
-                </button>
-                <button 
-                    wire:click="exportExcel"
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Excel
-                </button>
+                <form method="POST" action="{{ route('inventaires.export-pdf', $inventaire) }}">
+                    @csrf
+                    <button type="submit"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        PDF
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('inventaires.export-excel', $inventaire) }}">
+                    @csrf
+                    <button type="submit"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0118 9.414V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Excel
+                    </button>
+                </form>
                 <button 
                     onclick="window.print()"
                     class="inline-flex items-center px-3 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition">
@@ -74,13 +78,48 @@
         </div>
     </div>
 
+    @if($recentExports->isNotEmpty())
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+             @if($recentExports->contains(fn ($export) => in_array($export->status, ['pending', 'processing'], true))) wire:poll.5s @endif>
+            <h2 class="text-sm font-semibold text-gray-900 mb-3">Exports récents</h2>
+            <div class="space-y-2">
+                @foreach($recentExports as $export)
+                    <div class="flex items-center justify-between gap-4 text-sm">
+                        <span>
+                            {{ strtoupper($export->format) }} · {{ $export->created_at->format('d/m/Y H:i') }}
+                            @if($export->automatic)
+                                <span class="ml-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">Rapport final</span>
+                            @endif
+                        </span>
+                        @if($export->status === 'ready')
+                            <a href="{{ route('inventaires.exports.download', $export) }}" class="font-medium text-indigo-600 hover:text-indigo-800">Télécharger</a>
+                        @elseif($export->status === 'failed')
+                            <span class="text-red-600">Échec de génération</span>
+                        @elseif($export->status === 'processing')
+                            <span class="text-blue-600">Génération en cours…</span>
+                        @else
+                            <span class="text-gray-500">En attente…</span>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     {{-- Section statistiques pertinentes --}}
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {{-- Taux de conformité --}}
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5 {{ $interpretation['bg'] }}">
             <h3 class="text-xs font-medium text-gray-600 mb-1">Taux de conformité</h3>
             <p class="text-2xl font-bold {{ $interpretation['color'] }}">{{ round($this->statistiques['taux_conformite'], 1) }}%</p>
             <p class="text-xs text-gray-500 mt-1">{{ $interpretation['label'] }}</p>
+        </div>
+
+        {{-- Taux de rapprochement --}}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h3 class="text-xs font-medium text-gray-600 mb-1">Rapprochement</h3>
+            <p class="text-2xl font-bold text-blue-600">{{ $this->statistiques['taux_rapprochement'] ?? 0 }}%</p>
+            <p class="text-xs text-gray-500 mt-1">{{ $this->statistiques['total_biens_traites'] ?? 0 }}/{{ $this->statistiques['total_biens_attendus'] }} traités</p>
         </div>
 
         {{-- Taux de couverture --}}
@@ -96,7 +135,7 @@
             <p class="text-2xl font-bold {{ ($this->statistiques['biens_non_scannes'] ?? 0) > 0 ? 'text-amber-600' : 'text-gray-600' }}">
                 {{ $this->statistiques['biens_non_scannes'] ?? 0 }}
             </p>
-            <p class="text-xs text-gray-500 mt-1">manquants</p>
+            <p class="text-xs text-gray-500 mt-1">non encore traités</p>
         </div>
 
         {{-- Agents --}}
@@ -140,10 +179,10 @@
                     Résumé
                 </button>
                 <button 
-                    @click="activeTab = 'emplacements'; $wire.setActiveTab('emplacements')"
-                    :class="activeTab === 'emplacements' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                    @click="activeTab = 'sites'; $wire.setActiveTab('sites')"
+                    :class="activeTab === 'sites' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                     class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                    Par emplacement
+                    Par site
                 </button>
                 <button 
                     @click="activeTab = 'biens'; $wire.setActiveTab('biens')"
@@ -174,7 +213,7 @@
                     <div class="bg-white rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-600 font-medium mb-1">Taux d'anomalies</p>
                         <p class="text-xl font-bold {{ ($this->statistiques['taux_anomalies'] ?? 0) > 15 ? 'text-orange-600' : 'text-gray-900' }}">{{ $this->statistiques['taux_anomalies'] ?? 0 }}%</p>
-                        <p class="text-xs text-gray-500">déplacés + absents + défectueux</p>
+                        <p class="text-xs text-gray-500">biens uniques avec anomalie</p>
                     </div>
                     <div class="bg-white rounded-lg p-4 border border-gray-200">
                         <p class="text-xs text-gray-600 font-medium mb-1">Progression</p>
@@ -242,22 +281,22 @@
                 </div>
                 @endif
 
-                {{-- Performance par emplacement (tableau simplifié) --}}
+                {{-- Performance par site (tableau simplifié) --}}
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Performance par emplacement</h3>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Performance par site</h3>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Emplacement</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Site</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Localisation</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scannés</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scannés physiquement</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Présents</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Conformité</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach(collect($this->statistiques['par_emplacement'] ?? [])->sortByDesc('taux_conformite')->take(10) as $emp)
+                                @foreach(collect($this->statistiques['par_site'] ?? [])->sortByDesc('taux_conformite')->take(10) as $emp)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $emp['designation'] ?? $emp['code'] }}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{{ $emp['localisation'] ?? 'N/A' }}</td>
@@ -276,22 +315,22 @@
                 </div>
             </div>
 
-            {{-- ONGLET Par emplacement (résultats détaillés) --}}
-            <div x-show="activeTab === 'emplacements'" x-transition style="display: none;" class="space-y-6">
-                @if(count($this->detailParEmplacement) > 0)
+            {{-- ONGLET Par site (résultats détaillés) --}}
+            <div x-show="activeTab === 'sites'" x-transition style="display: none;" class="space-y-6">
+                @if(count($this->detailParSite) > 0)
                 <div class="mb-4">
                     <select 
                         wire:model.live="filterEmplacement"
                         class="block w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        <option value="all">Tous les emplacements</option>
-                        @foreach($this->detailParEmplacement as $emp)
-                            <option value="{{ $emp['emplacement_id'] }}">{{ $emp['designation'] ?? $emp['code'] }} ({{ $emp['localisation'] ?? 'N/A' }})</option>
+                        <option value="all">Tous les sites</option>
+                        @foreach($this->detailParSite as $emp)
+                            <option value="{{ $emp['site_id'] }}">{{ $emp['designation'] ?? $emp['code'] }} ({{ $emp['localisation'] ?? 'N/A' }})</option>
                         @endforeach
                     </select>
                 </div>
 
-                @foreach($this->detailParEmplacement as $emp)
-                    @if($filterEmplacement === 'all' || $filterEmplacement == $emp['emplacement_id'])
+                @foreach($this->detailParSite as $emp)
+                    @if($filterEmplacement === 'all' || $filterEmplacement == $emp['site_id'])
                         <div class="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
                             <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
                                 <div class="flex items-center justify-between">
@@ -331,21 +370,21 @@
                                             <td class="px-4 py-2 text-center">
                                                 <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $conformiteClass }}">{{ $ligne['conformite'] ?? '-' }}</span>
                                             </td>
-                                            <td class="px-4 py-2 text-center text-sm {{ ($ligne['etat'] ?? '') === 'Défectueuse' ? 'text-amber-600 font-medium' : 'text-gray-900' }}">{{ $ligne['etat'] ?? '-' }}</td>
+                                            <td class="px-4 py-2 text-center text-sm {{ ($ligne['etat'] ?? '') === 'Defectueux' ? 'text-amber-600 font-medium' : 'text-gray-900' }}">{{ $ligne['etat'] ?? '-' }}</td>
                                         </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>
                             @else
-                            <p class="px-4 py-6 text-sm text-gray-500 italic">Aucune immobilisation dans cet emplacement.</p>
+                            <p class="px-4 py-6 text-sm text-gray-500 italic">Aucune immobilisation dans ce site.</p>
                             @endif
                         </div>
                     @endif
                 @endforeach
                 @else
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p class="text-sm text-amber-800">Aucune donnée par emplacement disponible. Les inventaires peuvent utiliser le mode par localisation.</p>
+                    <p class="text-sm text-amber-800">Aucune donnée par site disponible. Les inventaires peuvent utiliser le mode par localisation.</p>
                 </div>
                 @endif
             </div>
@@ -437,7 +476,7 @@
                                         <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $scan->code_inventaire }}</td>
                                         <td class="px-4 py-3 text-sm text-gray-900">{{ Str::limit($scan->designation, 50) }}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-red-600 font-medium">{{ $scan->localisation_code ?? ($scan->bien?->localisation?->code ?? 'N/A') }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-medium">{{ $scan->localisationReelle?->CodeLocalisation ?? $scan->localisationReelle?->Localisation ?? 'N/A' }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-orange-600 font-medium">{{ $scan->localisationReelle?->code ?? $scan->localisationReelle?->localisation ?? 'N/A' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -500,7 +539,7 @@
                                         <td class="px-4 py-3 whitespace-nowrap">
                                             <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">Défectueuse</span>
                                         </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ $scan->localisationReelle?->CodeLocalisation ?? $scan->localisationReelle?->Localisation ?? ($scan->localisation_code ?? 'N/A') }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{{ $scan->localisationReelle?->code ?? $scan->localisationReelle?->localisation ?? ($scan->localisation_code ?? 'N/A') }}</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                                             @if($scan->photo_path && $scan->photo_url)
                                                 <div x-data="{ open: false }" class="inline" @keydown.escape.window="open = false">
@@ -590,7 +629,7 @@
 
     {{-- Footer simplifié --}}
     <div class="mt-6 pt-6 border-t border-gray-200 text-sm text-gray-500 text-center">
-        <p>Rapport généré le {{ now()->format('d/m/Y à H:i') }} par {{ auth()->user()->name }}</p>
+        <p>Rapport généré le {{ now()->format('d/m/Y à H:i') }} par {{ auth()->user()->users }}</p>
     </div>
 
     {{-- Messages flash --}}

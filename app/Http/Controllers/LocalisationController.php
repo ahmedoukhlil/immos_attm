@@ -2,213 +2,114 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LocalisationImmo;
-use App\Http\Requests\StoreLocalisationRequest;
+use App\Models\Localisation;
+use App\Support\SelectedIds;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LocalisationController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreLocalisationRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Localisation $localisation)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Localisation $localisation)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Localisation $localisation)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Localisation $localisation)
-    {
-        //
-    }
-
-    /**
      * Génère le QR code d'une localisation
-     * 
-     * @param Localisation $localisation
-     * @return \Illuminate\Http\RedirectResponse
      */
-    public function generateQRCode(LocalisationImmo $localisation)
+    public function generateQRCode(Localisation $localisation): RedirectResponse
     {
-        // Note: La génération de QR code pour les localisations n'est pas implémentée dans le nouveau modèle
-        // Cette fonctionnalité peut être ajoutée si nécessaire
+        // Seuls les sites portent un QR code scannable par la PWA.
         return redirect()->back()->with('info', 'La génération de QR code pour les localisations n\'est pas encore implémentée.');
     }
 
     /**
-     * Télécharge l'étiquette PDF d'une localisation
-     * 
-     * @param LocalisationImmo $localisation
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+     * Télécharge l'étiquette PDF d'une localisation (10 x 8 cm)
+     *
+     * @return Response|RedirectResponse
      */
-    public function downloadEtiquette(LocalisationImmo $localisation)
+    public function downloadEtiquette(Localisation $localisation)
     {
         try {
-            // Générer le PDF
             $pdf = Pdf::loadView('pdf.etiquette-localisation', [
                 'localisation' => $localisation,
-            ])->setPaper([0, 0, 283.46, 226.77], 'portrait'); // 10x8 cm en points
+            ])->setPaper([0, 0, 283.46, 226.77], 'portrait');
 
-            $filename = 'etiquette_' . Str::slug($localisation->CodeLocalisation ?? $localisation->idLocalisation) . '.pdf';
-
-            return $pdf->download($filename);
+            return $pdf->download('etiquette_'.Str::slug($localisation->libelle_court).'.pdf');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erreur lors de la génération de l\'étiquette: ' . $e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Erreur lors de la génération de l\'étiquette.');
         }
     }
 
     /**
      * Imprime en masse les étiquettes de plusieurs localisations
-     * 
-     * Disposition : 4 étiquettes par page A4 (2 colonnes x 2 lignes)
-     * Marges : 10mm, Espacement : 5mm entre étiquettes
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
+     * (4 étiquettes par page A4 : 2 colonnes x 2 lignes).
+     *
+     * @return Response|RedirectResponse
      */
     public function imprimerEtiquettes(Request $request)
     {
+        $validated = $request->validate([
+            'localisations' => 'required|array|min:1|max:1000',
+            'localisations.*' => 'integer|distinct|exists:localisations,id',
+        ]);
+
         try {
-            $request->validate([
-                'localisations' => 'required|array|min:1',
-                'localisations.*' => 'exists:localisation,idLocalisation',
-            ]);
-
-            $localisationIds = $request->input('localisations', []);
-            
-            // Récupérer les localisations
-            $localisations = LocalisationImmo::whereIn('idLocalisation', $localisationIds)->get();
-
-            if ($localisations->isEmpty()) {
-                return redirect()->back()->with('error', 'Aucune localisation sélectionnée.');
-            }
-
-            // Note: La génération de QR code pour les localisations n'est pas implémentée dans le nouveau modèle
-
-            // Générer le PDF multi-pages
             $pdf = Pdf::loadView('pdf.etiquettes-localisations', [
-                'localisations' => $localisations,
+                'localisations' => Localisation::whereIn('id', $validated['localisations'])->get(),
             ])->setPaper('a4', 'portrait');
 
-            $filename = 'etiquettes_localisations_' . now()->format('Y-m-d_His') . '.pdf';
-
-            return $pdf->download($filename);
+            return $pdf->download('etiquettes_localisations_'.now()->format('Y-m-d_His').'.pdf');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erreur lors de l\'impression des étiquettes: ' . $e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Erreur lors de l\'impression des étiquettes.');
         }
     }
 
     /**
-     * Exporte les localisations en format Excel (CSV)
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\Response
+     * Exporte les localisations en CSV
+     *
+     * @return StreamedResponse|RedirectResponse
      */
     public function exportExcel(Request $request)
     {
-        try {
-            // Récupérer les IDs sélectionnés depuis la requête (si fournis)
-            $ids = $request->input('ids');
-            
-            if ($ids) {
-                // Convertir la chaîne d'IDs séparés par des virgules en tableau
-                $idsArray = explode(',', $ids);
-                $localisations = LocalisationImmo::whereIn('idLocalisation', $idsArray)->get();
-            } else {
-                // Exporter toutes les localisations
-                $localisations = LocalisationImmo::all();
-            }
+        $selectedIds = SelectedIds::parse($request->input('ids'));
 
-            if ($localisations->isEmpty()) {
-                return redirect()->back()->with('warning', 'Aucune localisation à exporter.');
-            }
+        $query = Localisation::query()
+            ->withCount('sites')
+            ->when($selectedIds !== null, fn ($query) => $query->whereIn('id', $selectedIds));
 
-            // Nom du fichier
-            $filename = 'localisations_' . now()->format('Y-m-d_His') . '.csv';
-
-            // En-têtes HTTP pour forcer le téléchargement
-            $headers = [
-                'Content-Type' => 'text/csv; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            ];
-
-            // Callback pour générer le CSV
-            $callback = function() use ($localisations) {
-                $file = fopen('php://output', 'w');
-                
-                // Ajouter le BOM UTF-8 pour Excel
-                fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-                
-                // En-têtes de colonnes
-                fputcsv($file, [
-                    'ID Localisation',
-                    'Localisation',
-                    'Code Localisation',
-                    'Nombre d\'emplacements',
-                ], ';');
-
-                // Données
-                foreach ($localisations as $localisation) {
-                    $localisation->loadCount('emplacements');
-                    fputcsv($file, [
-                        $localisation->idLocalisation,
-                        $localisation->Localisation,
-                        $localisation->CodeLocalisation ?? '',
-                        $localisation->emplacements_count,
-                    ], ';');
-                }
-
-                fclose($file);
-            };
-
-            return response()->stream($callback, 200, $headers);
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erreur lors de l\'export: ' . $e->getMessage());
+        if (! (clone $query)->exists()) {
+            return redirect()->back()->with('warning', 'Aucune localisation à exporter.');
         }
+
+        $filename = 'localisations_'.now()->format('Y-m-d_His').'.csv';
+
+        $callback = function () use ($query): void {
+            $file = fopen('php://output', 'w');
+
+            // BOM UTF-8 pour Excel
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($file, ['ID', 'Localisation', 'Code', 'Nombre de sites'], ';');
+
+            foreach ($query->lazyById(500, 'id') as $localisation) {
+                fputcsv($file, [
+                    $localisation->id,
+                    $localisation->localisation,
+                    $localisation->code ?? '',
+                    $localisation->sites_count,
+                ], ';');
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 }

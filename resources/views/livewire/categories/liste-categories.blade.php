@@ -30,7 +30,7 @@
                 <input
                     type="text"
                     wire:model.live.debounce.300ms="search"
-                    placeholder="Rechercher par libellé, code, type CGI..."
+                    placeholder="Rechercher par libellé, code, imputation..."
                     class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
             </div>
         </div>
@@ -42,10 +42,10 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                wire:click="sortBy('CodeCategorie')">
+                                wire:click="sortBy('code')">
                                 <div class="flex items-center gap-1">
                                     Code
-                                    @if($sortField === 'CodeCategorie')
+                                    @if($sortField === 'code')
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}" />
                                         </svg>
@@ -53,35 +53,21 @@
                                 </div>
                             </th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                wire:click="sortBy('Categorie')">
+                                wire:click="sortBy('categorie')">
                                 <div class="flex items-center gap-1">
                                     Libellé
-                                    @if($sortField === 'Categorie')
+                                    @if($sortField === 'categorie')
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}" />
                                         </svg>
                                     @endif
                                 </div>
                             </th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Type CGI
-                            </th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                wire:click="sortBy('duree_amortissement')">
-                                <div class="flex items-center justify-center gap-1">
-                                    Durée
-                                    @if($sortField === 'duree_amortissement')
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}" />
-                                        </svg>
-                                    @endif
-                                </div>
-                            </th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                wire:click="sortBy('taux_amortissement')">
-                                <div class="flex items-center justify-center gap-1">
-                                    Taux
-                                    @if($sortField === 'taux_amortissement')
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                wire:click="sortBy('imputation_comptable')">
+                                <div class="flex items-center gap-1">
+                                    Imputation comptable
+                                    @if($sortField === 'imputation_comptable')
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}" />
                                         </svg>
@@ -106,24 +92,14 @@
                             <tr class="hover:bg-gray-50 transition-colors">
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-mono font-semibold bg-indigo-100 text-indigo-800">
-                                        {{ $categorie->CodeCategorie }}
+                                        {{ $categorie->code }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="text-sm font-medium text-gray-900">{{ $categorie->Categorie }}</div>
+                                    <div class="text-sm font-medium text-gray-900">{{ $categorie->categorie }}</div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    <div class="text-sm text-gray-500">{{ $categorie->type_cgi ?? '-' }}</div>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-center">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        {{ $categorie->duree_amortissement }} ans
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-center">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {{ number_format($categorie->taux_amortissement, 0) }}%
-                                    </span>
+                                    <div class="text-sm font-mono text-gray-700">{{ $categorie->imputation_comptable ?? '-' }}</div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-center">
                                     <span class="text-sm text-gray-700">{{ $categorie->designations_count }}</span>
@@ -144,8 +120,8 @@
                                             </svg>
                                         </a>
                                         <button
-                                            wire:click="deleteCategorie({{ $categorie->idCategorie }})"
-                                            wire:confirm="Supprimer la catégorie « {{ $categorie->Categorie }} » ?"
+                                            wire:click="deleteCategorie({{ $categorie->id }})"
+                                            wire:confirm="Supprimer la catégorie « {{ $categorie->categorie }} » ?"
                                             class="text-red-600 hover:text-red-900 transition-colors"
                                             title="Supprimer">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +134,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-4 py-12 text-center">
+                                <td colspan="6" class="px-4 py-12 text-center">
                                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                     </svg>

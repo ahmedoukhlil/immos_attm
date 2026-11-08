@@ -5,27 +5,24 @@ namespace App\Exports\Sheets;
 use App\Models\Inventaire;
 use App\Services\RapportService;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
  * Sheet Excel pour les biens non scannés
  */
-class BiensNonScannesSheet implements FromCollection, WithTitle, WithHeadings, WithStyles, WithColumnWidths
+class BiensNonScannesSheet implements FromCollection, WithColumnWidths, WithHeadings, WithStyles, WithTitle
 {
     protected $inventaire;
-    protected $biensNonScannes;
 
     public function __construct(Inventaire $inventaire)
     {
         $this->inventaire = $inventaire;
-        $rapportService = app(RapportService::class);
-        $this->biensNonScannes = $rapportService->getBiensNonScannes($inventaire);
     }
 
     /**
@@ -41,14 +38,14 @@ class BiensNonScannesSheet implements FromCollection, WithTitle, WithHeadings, W
      */
     public function collection()
     {
-        return $this->biensNonScannes->map(function ($bien) {
+        return app(RapportService::class)->getBiensNonScannes($this->inventaire)->map(function ($bien) {
             return [
                 'code' => $bien['code'] ?? 'N/A',
                 'designation' => $bien['designation'] ?? 'N/A',
                 'nature' => ucfirst($bien['nature'] ?? 'N/A'),
                 'localisation' => $bien['localisation'] ?? 'N/A',
-                'service' => $bien['service'] ?? 'N/A',
-                'valeur' => number_format($bien['valeur'] ?? 0, 0, ',', ' '),
+                'site' => $bien['site'] ?? 'N/A',
+                'responsable' => $bien['responsable'] ?? 'N/A',
             ];
         });
     }
@@ -63,8 +60,8 @@ class BiensNonScannesSheet implements FromCollection, WithTitle, WithHeadings, W
             'Désignation',
             'Nature',
             'Localisation',
-            'Service',
-            'Valeur (MRU)',
+            'Site',
+            'Responsable',
         ];
     }
 
@@ -97,4 +94,3 @@ class BiensNonScannesSheet implements FromCollection, WithTitle, WithHeadings, W
         ];
     }
 }
-

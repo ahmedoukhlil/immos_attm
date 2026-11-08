@@ -2,13 +2,13 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- En-tête -->
         <div class="mb-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Transfert d'immobilisations</h1>
-                    <p class="text-gray-500 mt-1">Déplacer une ou plusieurs immobilisations vers un nouvel emplacement</p>
+            <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="min-w-0">
+                    <h1 class="text-2xl font-bold text-gray-900 sm:text-3xl">Transfert d'immobilisations</h1>
+                    <p class="text-gray-500 mt-1">Déplacer une ou plusieurs immobilisations vers un nouveau site</p>
                 </div>
-                <a href="{{ route('biens.index') }}" 
-                   class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                <a href="{{ route('biens.index') }}" wire:navigate
+                   class="inline-flex flex-shrink-0 items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                     </svg>
@@ -51,7 +51,7 @@
                         <input 
                             type="text" 
                             wire:model.live.debounce.300ms="searchBien"
-                            placeholder="Rechercher par NumOrdre (ex: 1001), désignation, emplacement ou localisation..."
+                            placeholder="Rechercher par identifiant (ex: GS1001), code proposé, désignation, site ou responsable..."
                             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         />
                         @if(!empty($searchBien))
@@ -73,44 +73,44 @@
                                 // Utiliser les informations supplémentaires si disponibles
                                 $numOrdre = $option['numOrdre'] ?? $option['value'];
                                 $designation = $option['designation'] ?? 'N/A';
-                                $emplacement = $option['emplacement'] ?? 'Sans emplacement';
-                                $affectation = $option['affectation'] ?? 'N/A';
+                                $site = $option['site'] ?? 'Sans site';
+                                $responsable = $option['responsable'] ?? null;
                                 $localisation = $option['localisation'] ?? 'N/A';
                             @endphp
                             <div class="p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors {{ $estSelectionne ? 'bg-indigo-50 border-indigo-200' : '' }}">
                                 <div class="flex items-center justify-between">
                                     <div class="flex-1">
-                                        <!-- NumOrdre en évidence -->
+                                        <!-- Code en évidence -->
                                         <div class="flex items-center gap-2 mb-1">
                                             <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded text-xs font-bold">
-                                                Ordre: {{ $numOrdre }}
+                                                {{ $option['code'] ?? 'GS'.$numOrdre }}
                                             </span>
                                         </div>
                                         <!-- Désignation (nom) -->
                                         <p class="text-sm font-semibold text-gray-900 mb-2">
                                             {{ $designation }}
                                         </p>
-                                        <!-- Localisation, Affectation et Emplacement -->
+                                        <!-- Localisation, site et responsable -->
                                         <div class="space-y-1 text-xs text-gray-600">
                                             @if($localisation != 'N/A')
                                                 <p class="flex items-center">
-                                                    <span class="mr-1">🏢</span>
+                                                    <x-icon name="location-marker" class="w-3.5 h-3.5 mr-1 text-gray-400" />
                                                     <span class="font-medium">Localisation:</span>
                                                     <span class="ml-1">{{ $localisation }}</span>
                                                 </p>
                                             @endif
-                                            @if($affectation != 'N/A')
+                                            <p class="flex items-center">
+                                                <x-icon name="office-building" class="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                                <span class="font-medium">Site:</span>
+                                                <span class="ml-1">{{ $site }}</span>
+                                            </p>
+                                            @if($responsable)
                                                 <p class="flex items-center">
-                                                    <span class="mr-1">🏛️</span>
-                                                    <span class="font-medium">Affectation:</span>
-                                                    <span class="ml-1">{{ $affectation }}</span>
+                                                    <x-icon name="user" class="w-3.5 h-3.5 mr-1 text-gray-400" />
+                                                    <span class="font-medium">Responsable:</span>
+                                                    <span class="ml-1">{{ $responsable }}</span>
                                                 </p>
                                             @endif
-                                            <p class="flex items-center">
-                                                <span class="mr-1">📍</span>
-                                                <span class="font-medium">Emplacement:</span>
-                                                <span class="ml-1">{{ $emplacement }}</span>
-                                            </p>
                                         </div>
                                     </div>
                                     @if($estSelectionne)
@@ -147,11 +147,11 @@
                                 @foreach($biensSelectionnes as $bien)
                                     <div class="flex items-center justify-between bg-white rounded p-2 text-sm">
                                         <span class="font-medium text-gray-900">
-                                            Ordre: {{ $bien['NumOrdre'] }}
+                                            {{ $bien['code'] }} — {{ $bien['designation'] }}
                                         </span>
                                         <button 
                                             type="button"
-                                            wire:click="retirerBien({{ $bien['NumOrdre'] }})"
+                                            wire:click="retirerBien({{ $bien['id'] }})"
                                             class="text-red-600 hover:text-red-800">
                                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
@@ -168,74 +168,41 @@
                     @enderror
                 </div>
 
-                <!-- Colonne droite : Nouvel emplacement -->
+                <!-- Colonne droite : Nouveau site -->
                 <div class="bg-white rounded-lg shadow p-6 space-y-6">
-                    <h2 class="text-xl font-semibold text-gray-900">2. Nouvel emplacement</h2>
+                    <h2 class="text-xl font-semibold text-gray-900">2. Nouveau site</h2>
 
                     <!-- Localisation -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Localisation <span class="text-red-500">*</span>
+                            Localisation
                         </label>
                         <livewire:components.searchable-select
-                            wire:model.live="idLocalisation"
+                            wire:model.live="localisation_id"
                             :options="$this->localisationOptions"
-                            placeholder="Sélectionner une localisation"
+                            placeholder="Toutes les localisations"
                             search-placeholder="Rechercher une localisation..."
                             no-results-text="Aucune localisation trouvée"
+                            :allow-clear="true"
                             :key="'localisation-select-transfer'"
                         />
-                        @error('idLocalisation')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </div>
 
-                    <!-- Affectation -->
+                    <!-- Site -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Affectation <span class="text-red-500">*</span>
+                            Site <span class="text-red-500">*</span>
                         </label>
                         <livewire:components.searchable-select
-                            wire:model.live="idAffectation"
-                            :options="$this->affectationOptions"
-                            placeholder="Sélectionner une affectation"
-                            search-placeholder="Rechercher une affectation..."
-                            no-results-text="Aucune affectation trouvée"
-                            :disabled="empty($idLocalisation)"
-                            :container-class="empty($idLocalisation) && !empty($idAffectation) ? 'ring-2 ring-yellow-300' : ''"
-                            :key="'affectation-select-transfer-' . ($idLocalisation ?? 'none')"
+                            wire:model.live="site_id"
+                            :options="$this->siteOptions"
+                            placeholder="Sélectionner un site"
+                            search-placeholder="Rechercher un site ou un responsable..."
+                            no-results-text="Aucun site trouvé"
+                            :allow-clear="true"
+                            :key="'site-select-transfer-' . ($localisation_id ?: 'tous')"
                         />
-                        @if(empty($idLocalisation) && !empty($idAffectation))
-                            <p class="mt-1 text-xs text-yellow-600">
-                                Sélectionnez d'abord une localisation
-                            </p>
-                        @endif
-                        @error('idAffectation')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <!-- Emplacement -->
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Emplacement <span class="text-red-500">*</span>
-                        </label>
-                        <livewire:components.searchable-select
-                            wire:model.live="idEmplacement"
-                            :options="$this->emplacementOptions"
-                            placeholder="Sélectionner un emplacement"
-                            search-placeholder="Rechercher un emplacement..."
-                            no-results-text="Aucun emplacement trouvé"
-                            :disabled="empty($idAffectation)"
-                            :container-class="empty($idAffectation) && !empty($idEmplacement) ? 'ring-2 ring-yellow-300' : ''"
-                            :key="'emplacement-select-transfer-' . ($idLocalisation ?? 'none') . '-' . ($idAffectation ?? 'none')"
-                        />
-                        @if(empty($idAffectation) && !empty($idEmplacement))
-                            <p class="mt-1 text-xs text-yellow-600">
-                                Sélectionnez d'abord une affectation
-                            </p>
-                        @endif
-                        @error('idEmplacement')
+                        @error('site_id')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
@@ -257,12 +224,12 @@
                     </div>
 
                     <!-- Résumé -->
-                    @if(!empty($bienIds) && !empty($idEmplacement))
+                    @if(!empty($bienIds) && !empty($site_id))
                         <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                             <h3 class="text-sm font-semibold text-green-900 mb-2">Résumé du transfert</h3>
                             <ul class="text-sm text-green-800 space-y-1">
                                 <li>• <strong>{{ count($bienIds) }}</strong> immobilisation(s) à transférer</li>
-                                <li>• Vers: <strong>{{ $this->emplacementOptions[array_search($idEmplacement, array_column($this->emplacementOptions, 'value'))]['text'] ?? 'N/A' }}</strong></li>
+                                <li>• Vers: <strong>{{ collect($this->siteOptions)->firstWhere('value', (string) $site_id)['text'] ?? 'N/A' }}</strong></li>
                             </ul>
                         </div>
                     @endif
@@ -274,9 +241,9 @@
                                 class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                             Annuler
                         </button>
-                        <button type="submit" 
+                        <button type="submit"
                                 class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors inline-flex items-center"
-                                :disabled="empty($bienIds) || empty($idEmplacement)">
+                                @disabled(empty($bienIds) || empty($site_id))>
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
                             </svg>

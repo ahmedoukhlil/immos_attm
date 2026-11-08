@@ -2,418 +2,247 @@
 
 namespace App\Livewire\Biens;
 
-use App\Models\Gesimmo;
-use App\Models\LocalisationImmo;
-use App\Models\Affectation;
-use App\Models\Emplacement;
-use App\Models\HistoriqueTransfert;
 use App\Livewire\Traits\WithCachedOptions;
-use Livewire\Component;
-use Livewire\Attributes\Layout;
-use Illuminate\Support\Str;
+use App\Models\HistoriqueTransfert;
+use App\Models\Immobilisation;
+use App\Models\Site;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
+use Livewire\Component;
 
+/**
+ * Transfert groupé d'immobilisations vers un autre site, avec historique.
+ */
 #[Layout('components.layouts.app')]
 class TransfertBien extends Component
 {
     use WithCachedOptions;
 
-    // Sélection des immobilisations (multiple)
-    public $bienIds = []; // Tableau d'IDs sélectionnés
-    public $biensSelectionnes = []; // Tableau d'objets Gesimmo chargés
-    public $searchBien = ''; // Recherche dynamique pour les immobilisations
-    public $raison = ''; // Raison du transfert (optionnel)
+    public $bienIds = []; // Identifiants sélectionnés
 
-    // Nouveau emplacement (hiérarchique)
-    public $idLocalisation = '';
-    public $idAffectation = '';
-    public $idEmplacement = '';
+    public $biensSelectionnes = []; // Détails des immobilisations sélectionnées
+
+    public $searchBien = '';
+
+    public $raison = '';
 
     /**
-     * Vérification des permissions
+     * Destination
      */
+    public $localisation_id = '';
+
+    public $site_id = '';
+
     public function mount()
     {
-        $user = auth()->user();
-        if (!$user || !$user->canManageInventaire()) {
-            abort(403, 'Accès non autorisé.');
-        }
+        abort_unless(auth()->user()?->isAdmin(), 403, 'Accès non autorisé.');
     }
 
-    /**
-     * Ajouter une immobilisation à la sélection
-     */
     public function ajouterBien($bienId)
     {
-        $bienId = (int)$bienId;
-        
-        if (!in_array($bienId, $this->bienIds)) {
+        $bienId = (int) $bienId;
+
+        if (! in_array($bienId, $this->bienIds)) {
             $this->bienIds[] = $bienId;
             $this->chargerBiensSelectionnes();
         }
     }
 
-    /**
-     * Retirer une immobilisation de la sélection
-     */
     public function retirerBien($bienId)
     {
-        $this->bienIds = array_values(array_filter($this->bienIds, function($id) use ($bienId) {
-            return $id != $bienId;
-        }));
+        $this->bienIds = array_values(array_filter($this->bienIds, fn ($id) => $id != $bienId));
         $this->chargerBiensSelectionnes();
     }
 
-    /**
-     * Mise à jour automatique quand bienIds change
-     */
     public function updatedBienIds()
     {
         $this->chargerBiensSelectionnes();
     }
 
-    /**
-     * Charger les détails des immobilisations sélectionnées
-     */
     public function chargerBiensSelectionnes()
     {
-        if (empty($this->bienIds)) {
-            $this->biensSelectionnes = [];
-            return;
-        }
-
-        $biens = Gesimmo::with([
-            'designation',
-            'emplacement.affectation.localisation'
-        ])
-        ->whereIn('NumOrdre', $this->bienIds)
-        ->get();
-
-        // Convertir en tableau associatif avec NumOrdre comme clé
-        $this->biensSelectionnes = [];
-        foreach ($biens as $bien) {
-            $this->biensSelectionnes[$bien->NumOrdre] = [
-                'NumOrdre' => $bien->NumOrdre,
-                'designation' => $bien->designation ? $bien->designation->designation : 'N/A',
-                'emplacement' => $bien->emplacement ? $bien->emplacement->Emplacement : 'Sans emplacement',
-            ];
-        }
+        $this->biensSelectionnes = Immobilisation::with(['designation', 'site'])
+            ->whereIn('id', $this->bienIds)
+            ->get()
+            ->mapWithKeys(fn (Immobilisation $bien): array => [$bien->id => [
+                'id' => $bien->id,
+                'code' => $bien->code_formate,
+                'designation' => $bien->libelle_article ?? 'N/A',
+                'site' => $bien->site?->site ?? 'Sans site',
+            ]])
+            ->all();
     }
 
     /**
-     * Réagit au changement de localisation
+     * Change de localisation : le site de destination doit lui appartenir.
      */
-    public function updatedIdLocalisation($value)
+    public function updatedLocalisationId($value)
     {
-        if (empty($value)) {
-            $this->idAffectation = '';
-            $this->idEmplacement = '';
-        } else {
-            if (!empty($this->idAffectation)) {
-                $affectation = Affectation::find($this->idAffectation);
-                if (!$affectation || $affectation->idLocalisation != $value) {
-                    $this->idAffectation = '';
-                    $this->idEmplacement = '';
-                }
-            } else {
-                $this->idEmplacement = '';
-            }
+        if ($this->site_id && (string) Site::whereKey($this->site_id)->value('localisation_id') !== (string) $value) {
+            $this->site_id = '';
         }
     }
 
     /**
-     * Réagit au changement d'affectation
-     */
-    public function updatedIdAffectation($value)
-    {
-        if (empty($value)) {
-            $this->idEmplacement = '';
-        } else {
-            if (!empty($this->idEmplacement)) {
-                $emplacement = Emplacement::find($this->idEmplacement);
-                if (!$emplacement || $emplacement->idAffectation != $value) {
-                    $this->idEmplacement = '';
-                }
-            }
-        }
-    }
-
-    /**
-     * Options pour le select Immobilisations (recherche dynamique)
+     * Immobilisations proposées à la sélection
      */
     public function getBienOptionsProperty()
     {
-        $query = Gesimmo::with(['designation', 'categorie', 'emplacement.affectation.localisation'])
-            ->orderBy('NumOrdre');
+        $search = trim((string) $this->searchBien);
+        $identifiant = preg_replace('/^GS/i', '', $search);
 
-        // Si une recherche est en cours, filtrer les résultats
-        if (!empty($this->searchBien)) {
-            $search = trim($this->searchBien);
-            
-            // Si la recherche est un nombre, prioriser la recherche exacte par NumOrdre
-            if (is_numeric($search)) {
-                $query->where(function ($q) use ($search) {
-                    // Recherche exacte en priorité
-                    $q->where('NumOrdre', '=', (int)$search)
-                        // Puis recherche partielle sur NumOrdre
-                        ->orWhere('NumOrdre', 'like', '%' . $search . '%')
-                        // Et aussi sur les autres champs
-                        ->orWhereHas('designation', function ($q2) use ($search) {
-                            $q2->where('designation', 'like', '%' . $search . '%');
-                        })
-                        ->orWhereHas('emplacement', function ($q2) use ($search) {
-                            $q2->where('Emplacement', 'like', '%' . $search . '%');
-                        })
-                        ->orWhereHas('emplacement.affectation.localisation', function ($q2) use ($search) {
-                            $q2->where('Localisation', 'like', '%' . $search . '%');
-                        });
+        $query = Immobilisation::with(['designation', 'site.localisation'])
+            ->when($search !== '', function ($query) use ($search, $identifiant): void {
+                $query->where(function ($q) use ($search, $identifiant): void {
+                    if (ctype_digit($identifiant)) {
+                        $q->whereKey((int) $identifiant)
+                            ->orWhere('id', 'like', $identifiant.'%');
+                    }
+
+                    $q->orWhere('code_propose', 'like', '%'.$search.'%')
+                        ->orWhere('descriptif', 'like', '%'.$search.'%')
+                        ->orWhereHas('designation', fn ($d) => $d->where('designation', 'like', '%'.$search.'%'))
+                        ->orWhereHas('site', fn ($s) => $s->where('site', 'like', '%'.$search.'%')
+                            ->orWhere('responsable', 'like', '%'.$search.'%'))
+                        ->orWhereHas('site.localisation', fn ($l) => $l->where('localisation', 'like', '%'.$search.'%'));
                 });
-                // Trier pour mettre les résultats exacts en premier
-                $query->orderByRaw("CASE WHEN NumOrdre = ? THEN 0 ELSE 1 END", [(int)$search]);
-            } else {
-                // Recherche textuelle
-                $query->where(function ($q) use ($search) {
-                    $q->where('NumOrdre', 'like', '%' . $search . '%')
-                        ->orWhereHas('designation', function ($q2) use ($search) {
-                            $q2->where('designation', 'like', '%' . $search . '%');
-                        })
-                        ->orWhereHas('emplacement', function ($q2) use ($search) {
-                            $q2->where('Emplacement', 'like', '%' . $search . '%');
-                        })
-                        ->orWhereHas('emplacement.affectation.localisation', function ($q2) use ($search) {
-                            $q2->where('Localisation', 'like', '%' . $search . '%');
-                        });
-                });
-            }
-        } else {
-            $query->limit(50);
-        }
+
+                if (ctype_digit($identifiant)) {
+                    $query->orderByRaw('CASE WHEN immobilisations.id = ? THEN 0 ELSE 1 END', [(int) $identifiant]);
+                }
+            })
+            ->orderBy('id');
 
         $biens = $query->limit(100)->get();
 
         // Ajouter les biens déjà sélectionnés s'ils ne sont pas dans les résultats
-        if (!empty($this->bienIds)) {
-            $biensManquants = Gesimmo::with(['designation', 'categorie', 'emplacement.affectation.localisation'])
-                ->whereIn('NumOrdre', $this->bienIds)
-                ->whereNotIn('NumOrdre', $biens->pluck('NumOrdre'))
-                ->get();
-            $biens = $biens->merge($biensManquants);
+        if (! empty($this->bienIds)) {
+            $biens = $biens->merge(
+                Immobilisation::with(['designation', 'site.localisation'])
+                    ->whereIn('id', $this->bienIds)
+                    ->whereNotIn('id', $biens->pluck('id'))
+                    ->get()
+            );
         }
 
-        return $biens->map(function ($bien) {
-            $designation = $bien->designation ? $bien->designation->designation : 'N/A';
-            $emplacement = $bien->emplacement ? $bien->emplacement->Emplacement : 'Sans emplacement';
-            $affectation = $bien->emplacement && $bien->emplacement->affectation
-                ? $bien->emplacement->affectation->Affectation
-                : 'N/A';
-            $localisation = $bien->emplacement && $bien->emplacement->affectation && $bien->emplacement->affectation->localisation
-                ? $bien->emplacement->affectation->localisation->Localisation
-                : 'N/A';
-            
-            $estSelectionne = in_array($bien->NumOrdre, $this->bienIds);
-            
+        return $biens->map(function (Immobilisation $bien): array {
+            $designation = $bien->libelle_article ?? 'N/A';
+            $site = $bien->site?->site ?? 'Sans site';
+            $localisation = $bien->site?->localisation?->localisation ?? 'N/A';
+
             return [
-                'value' => (string)$bien->NumOrdre,
-                'text' => "{$designation} (Ordre: {$bien->NumOrdre}) - {$emplacement} [{$localisation}]",
-                'selected' => $estSelectionne,
-                // Informations supplémentaires pour l'affichage
-                'numOrdre' => $bien->NumOrdre,
+                'value' => (string) $bien->id,
+                'text' => "{$designation} ({$bien->code_formate}) - {$site} [{$localisation}]",
+                'selected' => in_array($bien->id, $this->bienIds),
+                'numOrdre' => $bien->id,
+                'code' => $bien->code_formate,
                 'designation' => $designation,
-                'emplacement' => $emplacement,
-                'affectation' => $affectation,
+                'site' => $site,
+                'responsable' => $bien->site?->responsable,
                 'localisation' => $localisation,
             ];
         })->toArray();
     }
 
-    /**
-     * Options pour le select Localisations
-     */
     public function getLocalisationOptionsProperty()
     {
-        return $this->getCachedLocalisationOptions(300, true);
+        return $this->getCachedLocalisationOptions();
     }
 
-    /**
-     * Options pour le select Affectations
-     */
-    public function getAffectationOptionsProperty()
+    public function getSiteOptionsProperty()
     {
-        $options = [[
-            'value' => '',
-            'text' => 'Sélectionner une affectation',
-        ]];
-
-        if (empty($this->idLocalisation)) {
-            return $options;
-        }
-
-        $affectations = $this->getCachedAffectationOptions($this->idLocalisation, 300);
-        return array_merge($options, $affectations);
+        return $this->getCachedSiteOptions($this->localisation_id !== '' ? (int) $this->localisation_id : null);
     }
 
-    /**
-     * Options pour le select Emplacements
-     */
-    public function getEmplacementOptionsProperty()
-    {
-        $options = [[
-            'value' => '',
-            'text' => 'Sélectionner un emplacement',
-        ]];
-
-        if (empty($this->idAffectation)) {
-            return $options;
-        }
-
-        $emplacements = $this->getCachedEmplacementOptions(
-            $this->idLocalisation,
-            $this->idAffectation,
-            300,
-            true
-        );
-        return array_merge($options, $emplacements);
-    }
-
-    /**
-     * Règles de validation
-     */
     protected function rules()
     {
         return [
             'bienIds' => 'required|array|min:1',
-            'bienIds.*' => 'required|exists:gesimmo,NumOrdre',
-            'idLocalisation' => 'required|exists:localisation,idLocalisation',
-            'idAffectation' => 'required|exists:affectation,idAffectation',
-            'idEmplacement' => 'required|exists:emplacement,idEmplacement',
+            'bienIds.*' => 'required|exists:immobilisations,id',
+            'site_id' => 'required|exists:sites,id',
             'raison' => 'nullable|string|max:500',
         ];
     }
 
-    /**
-     * Messages de validation personnalisés
-     */
     protected function messages()
     {
         return [
             'bienIds.required' => 'Veuillez sélectionner au moins une immobilisation.',
             'bienIds.min' => 'Veuillez sélectionner au moins une immobilisation.',
-            'idLocalisation.required' => 'La localisation de destination est obligatoire.',
-            'idAffectation.required' => 'L\'affectation de destination est obligatoire.',
-            'idEmplacement.required' => 'L\'emplacement de destination est obligatoire.',
+            'site_id.required' => 'Le site de destination est obligatoire.',
+            'site_id.exists' => 'Le site de destination n\'existe pas.',
         ];
     }
 
     /**
-     * Effectuer le transfert groupé avec historique
+     * Effectue le transfert groupé et l'enregistre dans l'historique
      */
     public function transferer()
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $validated = $this->validate();
+        $site = Site::with('localisation')->findOrFail($validated['site_id']);
+        $groupeId = 'TRF-'.date('YmdHis').'-'.Str::random(6);
 
-        // Vérifier que l'emplacement appartient bien à l'affectation et la localisation
-        $emplacement = Emplacement::with(['affectation.localisation'])
-            ->find($validated['idEmplacement']);
-
-        if (!$emplacement) {
-            session()->flash('error', 'Emplacement introuvable.');
-            return;
-        }
-
-        if ($emplacement->idAffectation != $validated['idAffectation']) {
-            session()->flash('error', 'L\'emplacement ne correspond pas à l\'affectation sélectionnée.');
-            return;
-        }
-
-        if ($emplacement->affectation->idLocalisation != $validated['idLocalisation']) {
-            session()->flash('error', 'L\'affectation ne correspond pas à la localisation sélectionnée.');
-            return;
-        }
-
-        // Générer un ID de groupe pour ce transfert
-        $groupeId = 'TRF-' . date('YmdHis') . '-' . Str::random(6);
-
-        // Informations du nouvel emplacement
-        $nouveauEmplacementLibelle = $emplacement->Emplacement;
-        $nouvelleAffectationLibelle = $emplacement->affectation->Affectation ?? 'N/A';
-        $nouvelleLocalisationLibelle = $emplacement->affectation->localisation->Localisation ?? 'N/A';
-
-        // Utiliser une transaction pour garantir la cohérence
-        DB::beginTransaction();
         try {
-            $transfertsReussis = 0;
-            $transfertsEchoues = 0;
+            [$reussis, $echoues] = DB::transaction(function () use ($validated, $site, $groupeId): array {
+                $reussis = 0;
+                $echoues = 0;
 
-            foreach ($validated['bienIds'] as $bienId) {
-                $bien = Gesimmo::with(['emplacement.affectation.localisation'])
-                    ->find($bienId);
+                $biens = Immobilisation::with('site.localisation')
+                    ->whereIn('id', $validated['bienIds'])
+                    ->lockForUpdate()
+                    ->get();
 
-                if (!$bien) {
-                    $transfertsEchoues++;
-                    continue;
+                $echoues += count($validated['bienIds']) - $biens->count();
+
+                foreach ($biens as $bien) {
+                    if ((int) $bien->site_id === (int) $site->id) {
+                        $echoues++;
+
+                        continue;
+                    }
+
+                    $ancienSite = $bien->site;
+                    $bien->update(['site_id' => $site->id]);
+
+                    HistoriqueTransfert::create([
+                        'immobilisation_id' => $bien->id,
+                        'ancien_site_id' => $ancienSite?->id,
+                        'nouveau_site_id' => $site->id,
+                        'ancien_site_libelle' => $ancienSite?->site ?? 'Sans site',
+                        'nouveau_site_libelle' => $site->site,
+                        'ancien_localisation_libelle' => $ancienSite?->localisation?->localisation ?? 'N/A',
+                        'nouveau_localisation_libelle' => $site->localisation?->localisation ?? 'N/A',
+                        'transfert_par' => auth()->user()->idUser,
+                        'date_transfert' => now(),
+                        'raison' => $validated['raison'] ?? null,
+                        'groupe_transfert_id' => $groupeId,
+                    ]);
+
+                    $reussis++;
                 }
 
-                // Vérifier que le nouvel emplacement est différent
-                if ($bien->idEmplacement == $validated['idEmplacement']) {
-                    $transfertsEchoues++;
-                    continue;
-                }
-
-                // Sauvegarder l'ancien emplacement
-                $ancienEmplacement = $bien->emplacement;
-                $ancienEmplacementLibelle = $ancienEmplacement ? $ancienEmplacement->Emplacement : 'Sans emplacement';
-                $ancienneAffectationLibelle = $ancienEmplacement && $ancienEmplacement->affectation 
-                    ? $ancienEmplacement->affectation->Affectation 
-                    : 'N/A';
-                $ancienneLocalisationLibelle = $ancienEmplacement && $ancienEmplacement->affectation && $ancienEmplacement->affectation->localisation
-                    ? $ancienEmplacement->affectation->localisation->Localisation
-                    : 'N/A';
-
-                // Effectuer le transfert
-                $bien->idEmplacement = $validated['idEmplacement'];
-                $bien->save();
-
-                // Enregistrer dans l'historique
-                HistoriqueTransfert::create([
-                    'NumOrdre' => $bien->NumOrdre,
-                    'ancien_idEmplacement' => $ancienEmplacement ? $ancienEmplacement->idEmplacement : null,
-                    'nouveau_idEmplacement' => $validated['idEmplacement'],
-                    'ancien_emplacement_libelle' => $ancienEmplacementLibelle,
-                    'nouveau_emplacement_libelle' => $nouveauEmplacementLibelle,
-                    'ancien_affectation_libelle' => $ancienneAffectationLibelle,
-                    'nouveau_affectation_libelle' => $nouvelleAffectationLibelle,
-                    'ancien_localisation_libelle' => $ancienneLocalisationLibelle,
-                    'nouveau_localisation_libelle' => $nouvelleLocalisationLibelle,
-                    'transfert_par' => auth()->user()->idUser,
-                    'date_transfert' => now(),
-                    'raison' => $validated['raison'] ?? null,
-                    'groupe_transfert_id' => $groupeId,
-                ]);
-
-                $transfertsReussis++;
-            }
-
-            DB::commit();
-
-            // Message de succès
-            $message = "Transfert effectué : {$transfertsReussis} immobilisation(s) transférée(s) vers '{$nouveauEmplacementLibelle}'.";
-            if ($transfertsEchoues > 0) {
-                $message .= " {$transfertsEchoues} transfert(s) échoué(s) (déjà dans cet emplacement ou introuvable).";
-            }
-            session()->flash('success', $message);
-
-            // Réinitialiser le formulaire
-            $this->reset(['bienIds', 'biensSelectionnes', 'idLocalisation', 'idAffectation', 'idEmplacement', 'searchBien', 'raison']);
-
+                return [$reussis, $echoues];
+            });
         } catch (\Exception $e) {
-            DB::rollBack();
-            session()->flash('error', 'Erreur lors du transfert : ' . $e->getMessage());
+            report($e);
+            session()->flash('error', 'Erreur lors du transfert.');
+
+            return;
         }
+
+        $message = "Transfert effectué : {$reussis} immobilisation(s) transférée(s) vers « {$site->site} ».";
+        if ($echoues > 0) {
+            $message .= " {$echoues} transfert(s) ignoré(s) (déjà sur ce site ou introuvable).";
+        }
+        session()->flash('success', $message);
+
+        $this->reset(['bienIds', 'biensSelectionnes', 'localisation_id', 'site_id', 'searchBien', 'raison']);
     }
 
-    /**
-     * Annuler et retourner à la liste
-     */
     public function cancel()
     {
         return redirect()->route('biens.index');

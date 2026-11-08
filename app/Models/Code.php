@@ -6,25 +6,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Code-barres généré pour une immobilisation.
+ */
 class Code extends Model
 {
     use HasFactory;
 
     protected $table = 'codes';
-    protected $primaryKey = 'id';
+
     public $timestamps = false;
 
-    protected $fillable = ['idGesimmo', 'barcode'];
+    protected $fillable = ['immobilisation_id', 'barcode'];
 
-    /**
-     * RELATIONS
-     */
-
-    /**
-     * Relation avec l'immobilisation
-     */
     public function immobilisation(): BelongsTo
     {
-        return $this->belongsTo(Gesimmo::class, 'idGesimmo', 'NumOrdre');
+        return $this->belongsTo(Immobilisation::class)->withoutGlobalScope(Immobilisation::PORTEE_EN_SERVICE);
     }
 }

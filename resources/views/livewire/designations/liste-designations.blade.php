@@ -77,7 +77,7 @@
                             class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             <option value="">Toutes les catégories</option>
                             @foreach($this->categories as $categorie)
-                                <option value="{{ $categorie->idCategorie }}">{{ $categorie->Categorie }}</option>
+                                <option value="{{ $categorie->id }}">{{ $categorie->categorie }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -144,12 +144,12 @@
                                     <div class="text-sm font-medium text-gray-900">{{ $designation->designation }}</div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ $designation->CodeDesignation ?? '-' }}</div>
+                                    <div class="text-sm text-gray-900">{{ $designation->code ?? '-' }}</div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">
                                         @if($designation->categorie)
-                                            {{ $designation->categorie->Categorie }}
+                                            {{ $designation->categorie->categorie }}
                                         @else
                                             <span class="text-gray-400">-</span>
                                         @endif

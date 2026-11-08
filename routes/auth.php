@@ -63,12 +63,4 @@ Route::middleware('auth')->group(function () {
     // Déconnexion (POST uniquement pour la sécurité)
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
-    
-    // Route GET pour logout (gère les accès directs via URL)
-    // Redirige vers login avec un message informatif
-    Route::get('logout', function () {
-        return redirect()->route('login')
-            ->with('info', 'Veuillez utiliser le bouton de déconnexion dans le menu pour vous déconnecter.');
-    });
 });
-

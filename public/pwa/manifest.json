@@ -1,7 +1,7 @@
 {
-  "name": "Immos SAN - Scanner v2",
-  "short_name": "Scanner v2",
-  "description": "Immos SAN - Scanner par emplacement pour immobilisations",
+  "name": "Inventaire mobile",
+  "short_name": "Inventaire",
+  "description": "Scanner mobile pour l’inventaire physique par emplacement",
   "start_url": "/pwa/index-v2.html",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -1,11 +1,10 @@
 // Service Worker pour Inventaire Pro
-const CACHE_NAME = 'inventaire-pro-v1';
-const RUNTIME_CACHE = 'inventaire-pro-runtime-v1';
+const CACHE_NAME = 'inventaire-pro-v2';
+const RUNTIME_CACHE = 'inventaire-pro-runtime-v2';
 
 // Fichiers à mettre en cache lors de l'installation
 // Note: Les fichiers CSS/JS compilés par Vite sont gérés dynamiquement
 const PRECACHE_URLS = [
-  '/',
   '/images/icons/icon-192x192.png',
   '/images/icons/icon-512x512.png',
   '/manifest.json'
@@ -49,7 +48,9 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames
           .filter((cacheName) => {
-            return cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE;
+            return cacheName.startsWith('inventaire-pro-')
+              && cacheName !== CACHE_NAME
+              && cacheName !== RUNTIME_CACHE;
           })
           .map((cacheName) => {
             console.log('[Service Worker] Suppression de l\'ancien cache:', cacheName);
@@ -73,6 +74,19 @@ self.addEventListener('fetch', (event) => {
 
   // Ignorer les requêtes vers l'API (doivent toujours être en ligne)
   if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Le scanner possède son propre service worker, son cache et sa stratégie
+  // hors ligne. Le worker principal ne doit jamais intercepter ce périmètre.
+  if (url.pathname.startsWith('/pwa/')) {
+    return;
+  }
+
+  // Les navigations de l'application principale doivent toujours provenir
+  // du serveur. Cela évite qu'une ancienne application partageant l'origine
+  // localhost reste affichée après un redémarrage.
+  if (request.mode === 'navigate') {
     return;
   }
 

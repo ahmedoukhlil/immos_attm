@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -22,7 +21,7 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Traite la tentative de connexion
-     * 
+     *
      * Protections de sécurité :
      * - Validation stricte des entrées
      * - Protection contre les attaques par force brute (rate limiting)
@@ -59,32 +58,13 @@ class AuthenticatedSessionController extends Controller
         $user = User::findByUsername($validated['users']);
 
         // Vérifier l'utilisateur et le mot de passe
-        if (!$user) {
+        if (! $user) {
             throw ValidationException::withMessages([
                 'users' => __('Les identifiants fournis sont incorrects.'),
             ]);
         }
 
-        // Vérifier le mot de passe (gérer les mots de passe en clair et hashés)
-        $passwordValid = false;
-        $storedPassword = $user->mdp;
-
-        // Vérifier si le mot de passe stocké est hashé (commence par $2y$ pour bcrypt)
-        if (str_starts_with($storedPassword, '$2y$')) {
-            // Mot de passe hashé, utiliser Hash::check
-            $passwordValid = Hash::check($validated['mdp'], $storedPassword);
-        } else {
-            // Mot de passe en clair, comparer directement
-            $passwordValid = ($validated['mdp'] === $storedPassword);
-            
-            // Si la connexion réussit avec un mot de passe en clair, le hasher pour la sécurité
-            if ($passwordValid) {
-                $user->mdp = Hash::make($validated['mdp']);
-                $user->save();
-            }
-        }
-
-        if (!$passwordValid) {
+        if (! Hash::isHashed($user->mdp) || ! Hash::check($validated['mdp'], $user->mdp)) {
             \Log::warning('Tentative de connexion échouée', [
                 'users' => $validated['users'],
                 'ip' => $request->ip(),
@@ -116,12 +96,14 @@ class AuthenticatedSessionController extends Controller
         try {
             $dashboardUrl = route('dashboard');
             \Log::info('Redirection vers dashboard', ['url' => $dashboardUrl]);
+
             return redirect()->intended($dashboardUrl);
         } catch (\Exception $e) {
             \Log::error('Erreur lors de la redirection', [
                 'error' => $e->getMessage(),
-                'route' => 'dashboard'
+                'route' => 'dashboard',
             ]);
+
             // Redirection de secours vers la page d'accueil
             return redirect('/');
         }
@@ -140,4 +122,3 @@ class AuthenticatedSessionController extends Controller
         return redirect()->route('login');
     }
 }
-

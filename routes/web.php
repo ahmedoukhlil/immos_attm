@@ -1,9 +1,39 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\BienController;
+use App\Http\Controllers\EtiquetteController;
 use App\Http\Controllers\InventaireController;
 use App\Http\Controllers\LocalisationController;
-use App\Http\Controllers\QRCodeEmplacementController;
+use App\Http\Controllers\QRCodeSiteController;
+use App\Http\Controllers\SortieController;
+use App\Livewire\Biens\DetailBien;
+use App\Livewire\Biens\FormBien;
+use App\Livewire\Biens\HistoriqueTransferts;
+use App\Livewire\Biens\ListeBiens;
+use App\Livewire\Biens\TransfertBien;
+use App\Livewire\Categories\FormCategorie;
+use App\Livewire\Categories\ListeCategories;
+use App\Livewire\Dashboard;
+use App\Livewire\Designations\FormDesignation;
+use App\Livewire\Designations\ListeDesignations;
+use App\Livewire\Inventaires\DashboardInventaire;
+use App\Livewire\Inventaires\DemarrerInventaire;
+use App\Livewire\Inventaires\ListeInventaires;
+use App\Livewire\Inventaires\RapportInventaire;
+use App\Livewire\Inventaires\ReportInventaire;
+use App\Livewire\Localisations\DetailLocalisation;
+use App\Livewire\Localisations\FormLocalisation;
+use App\Livewire\Localisations\ListeLocalisations;
+use App\Livewire\Profil;
+use App\Livewire\Sites\DetailSite;
+use App\Livewire\Sites\FormSite;
+use App\Livewire\Sites\ListeSites;
+use App\Livewire\Sorties\DetailSortie;
+use App\Livewire\Sorties\ListeSorties;
+use App\Livewire\Users\FormUser;
+use App\Livewire\Users\GestionRoles;
+use App\Livewire\Users\ListeUsers;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,22 +43,18 @@ use Illuminate\Support\Facades\Route;
 */
 
 // La page d'accueil affiche directement le formulaire de login
-Route::get('/', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])
+Route::get('/', [AuthenticatedSessionController::class, 'create'])
     ->middleware('guest')
     ->name('home');
+
+Route::view('/pwa/index-v2.html', 'pwa.index')->name('pwa.scanner');
 
 /*
 |--------------------------------------------------------------------------
 | Routes d'Authentification
 |--------------------------------------------------------------------------
-|
-| Les routes d'authentification (login, register, password reset, etc.)
-| sont gérées par Laravel Breeze et se trouvent dans le fichier
-| auth.php (si configuré) ou directement dans ce fichier.
-|
 */
 
-// Inclusion des routes d'authentification (si le fichier existe)
 if (file_exists(__DIR__.'/auth.php')) {
     require __DIR__.'/auth.php';
 }
@@ -37,315 +63,153 @@ if (file_exists(__DIR__.'/auth.php')) {
 |--------------------------------------------------------------------------
 | Routes Authentifiées
 |--------------------------------------------------------------------------
-|
-| Toutes les routes ci-dessous nécessitent que l'utilisateur soit authentifié.
-|
 */
 
 Route::middleware(['auth', 'session.timeout'])->group(function () {
 
-    /*
-    |----------------------------------------------------------------------
-    | Dashboard
-    |----------------------------------------------------------------------
-    |
-    | Accessible à tous les utilisateurs authentifiés (admin et agent).
-    |
-    */
-    Route::get('/dashboard', \App\Livewire\Dashboard::class)->name('dashboard');
+    // Accessible à tous les utilisateurs authentifiés (admin et agent).
+    Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
-    /*
-    |----------------------------------------------------------------------
-    | Profil Utilisateur
-    |----------------------------------------------------------------------
-    |
-    | Accessible à tous les utilisateurs authentifiés pour modifier
-    | leur mot de passe.
-    |
-    */
-    Route::get('/profil', \App\Livewire\Profil::class)->name('profil');
+    // Modification du mot de passe.
+    Route::get('/profil', Profil::class)->name('profil');
 
     /*
     |----------------------------------------------------------------------
     | Routes avec Middleware 'inventory' (Admin + Agent)
     |----------------------------------------------------------------------
-    |
-    | Ces routes sont accessibles aux administrateurs et aux agents.
-    | Elles concernent la gestion des localisations, biens, inventaires
-    | et rapports.
-    |
     */
     Route::middleware(['inventory'])->group(function () {
 
         /*
         |------------------------------------------------------------------
-        | Localisations
+        | Localisations (bâtiments regroupant des sites)
         |------------------------------------------------------------------
-        |
-        | Gestion des localisations (bureaux, ateliers, etc.)
-        |
         */
         Route::prefix('localisations')->name('localisations.')->group(function () {
-            // Liste des localisations
-            Route::get('/', \App\Livewire\Localisations\ListeLocalisations::class)->name('index');
-            
-            // Export Excel des localisations (doit être avant les routes avec paramètres)
-            Route::get('/export/excel', [LocalisationController::class, 'exportExcel'])->name('export-excel');
-            
-            // Impression en masse d'étiquettes
-            Route::post('/imprimer-etiquettes', [LocalisationController::class, 'imprimerEtiquettes'])->name('imprimer-etiquettes');
-            
-            // Création d'une localisation
-            Route::get('/create', \App\Livewire\Localisations\FormLocalisation::class)->name('create');
-            
-            // Génération du QR code d'une localisation
-            Route::get('/{localisation}/qr-code', [LocalisationController::class, 'generateQRCode'])->name('qr-code');
-            
-            // Téléchargement de l'étiquette d'une localisation
-            Route::get('/{localisation}/etiquette', [LocalisationController::class, 'downloadEtiquette'])->name('etiquette');
-            
-            // Édition d'une localisation
-            Route::get('/{localisation}/edit', \App\Livewire\Localisations\FormLocalisation::class)->name('edit');
-            
-            // Détails d'une localisation (doit être en dernier car il capture toutes les routes)
-            Route::get('/{localisation}', \App\Livewire\Localisations\DetailLocalisation::class)->name('show');
+            Route::get('/', ListeLocalisations::class)->name('index');
+
+            // Doit être avant les routes avec paramètres
+            Route::get('/export/excel', [LocalisationController::class, 'exportExcel'])->middleware('admin')->name('export-excel');
+            Route::post('/imprimer-etiquettes', [LocalisationController::class, 'imprimerEtiquettes'])->middleware('admin')->name('imprimer-etiquettes');
+            Route::get('/create', FormLocalisation::class)->middleware('admin')->name('create');
+            Route::get('/{localisation}/qr-code', [LocalisationController::class, 'generateQRCode'])->middleware('admin')->name('qr-code');
+            Route::get('/{localisation}/etiquette', [LocalisationController::class, 'downloadEtiquette'])->middleware('admin')->name('etiquette');
+            Route::get('/{localisation}/edit', FormLocalisation::class)->middleware('admin')->name('edit');
+
+            // Doit être en dernier car il capture toutes les routes
+            Route::get('/{localisation}', DetailLocalisation::class)->name('show');
         });
 
         /*
         |------------------------------------------------------------------
-        | Emplacements
+        | Sites (bureaux, services, salles) et leur responsable
         |------------------------------------------------------------------
-        |
-        | Gestion des emplacements (liés à Localisation et Affectation)
-        |
         */
-        Route::prefix('emplacements')->name('emplacements.')->group(function () {
-            // Liste des emplacements
-            Route::get('/', \App\Livewire\Emplacements\ListeEmplacements::class)->name('index');
-            
-            // Création d'un emplacement
-            Route::get('/create', \App\Livewire\Emplacements\FormEmplacement::class)->name('create');
-            
-            // Détails d'un emplacement (avec QR code)
-            Route::get('/{emplacement}', \App\Livewire\Emplacements\DetailEmplacement::class)->name('show');
-            
-            // Édition d'un emplacement
-            Route::get('/{emplacement}/edit', \App\Livewire\Emplacements\FormEmplacement::class)->name('edit');
+        Route::prefix('sites')->name('sites.')->middleware('admin')->group(function () {
+            Route::get('/', ListeSites::class)->name('index');
+            Route::get('/create', FormSite::class)->name('create');
+            Route::get('/{site}/etiquettes', [EtiquetteController::class, 'apercu'])->name('etiquettes.apercu');
+            Route::post('/{site}/etiquettes/pdf', [EtiquetteController::class, 'generer'])->name('etiquettes.pdf');
+            Route::post('/{site}/etiquettes/{generation}/confirmer', [EtiquetteController::class, 'confirmerImpression'])->name('etiquettes.confirmer');
+            Route::get('/{site}', DetailSite::class)->name('show');
+            Route::get('/{site}/edit', FormSite::class)->name('edit');
         });
 
         /*
         |------------------------------------------------------------------
-        | Affectations
-        |------------------------------------------------------------------
-        |
-        | Gestion des affectations
-        |
-        */
-        Route::prefix('affectations')->name('affectations.')->group(function () {
-            // Liste des affectations
-            Route::get('/', \App\Livewire\Affectations\ListeAffectations::class)->name('index');
-            
-            // Création d'une affectation
-            Route::get('/create', \App\Livewire\Affectations\FormAffectation::class)->name('create');
-            
-            // Édition d'une affectation
-            Route::get('/{affectation}/edit', \App\Livewire\Affectations\FormAffectation::class)->name('edit');
-        });
-
-        /*
-        |------------------------------------------------------------------
-        | Catégories
+        | Catégories (et leur imputation comptable)
         |------------------------------------------------------------------
         */
-        Route::prefix('categories')->name('categories.')->group(function () {
-            Route::get('/', \App\Livewire\Categories\ListeCategories::class)->name('index');
-            Route::get('/create', \App\Livewire\Categories\FormCategorie::class)->name('create');
-            Route::get('/{categorie}/edit', \App\Livewire\Categories\FormCategorie::class)->name('edit');
+        Route::prefix('categories')->name('categories.')->middleware('admin')->group(function () {
+            Route::get('/', ListeCategories::class)->name('index');
+            Route::get('/create', FormCategorie::class)->name('create');
+            Route::get('/{categorie}/edit', FormCategorie::class)->name('edit');
         });
 
         /*
         |------------------------------------------------------------------
         | Désignations
         |------------------------------------------------------------------
-        |
-        | Gestion des désignations
-        |
         */
-        Route::prefix('designations')->name('designations.')->group(function () {
-            // Liste des désignations
-            Route::get('/', \App\Livewire\Designations\ListeDesignations::class)->name('index');
-            
-            // Création d'une désignation
-            Route::get('/create', \App\Livewire\Designations\FormDesignation::class)->name('create');
-            
-            // Édition d'une désignation
-            Route::get('/{designation}/edit', \App\Livewire\Designations\FormDesignation::class)->name('edit');
+        Route::prefix('designations')->name('designations.')->middleware('admin')->group(function () {
+            Route::get('/', ListeDesignations::class)->name('index');
+            Route::get('/create', FormDesignation::class)->name('create');
+            Route::get('/{designation}/edit', FormDesignation::class)->name('edit');
         });
 
         /*
         |------------------------------------------------------------------
-        | QR Codes des Emplacements (Pour PWA Scanner)
+        | QR Codes des Sites (Pour PWA Scanner)
         |------------------------------------------------------------------
-        |
-        | Génération des QR codes pour scanner les emplacements via la PWA
-        |
         */
-        Route::prefix('qrcodes/emplacements')->name('qrcodes.')->group(function () {
-            // Page principale de génération des QR codes
-            Route::get('/', [QRCodeEmplacementController::class, 'index'])->name('emplacements');
-            
-            // Générer un QR code SVG pour un emplacement
-            Route::get('/{idEmplacement}/generate', [QRCodeEmplacementController::class, 'generate'])->name('generate');
-            
-            // Télécharger PDF de tous les QR codes (avec filtres)
-            Route::get('/pdf', [QRCodeEmplacementController::class, 'downloadPdf'])->name('emplacements.pdf');
-            
-            // Imprimer les QR codes sélectionnés
-            Route::post('/print', [QRCodeEmplacementController::class, 'printSelected'])->name('print-selected');
+        Route::prefix('qrcodes/sites')->name('qrcodes.')->middleware('admin')->group(function () {
+            Route::get('/', [QRCodeSiteController::class, 'index'])->name('sites');
+            Route::get('/pdf', [QRCodeSiteController::class, 'downloadPdf'])->name('sites.pdf');
+            Route::post('/print', [QRCodeSiteController::class, 'printSelected'])->name('print-selected');
+            Route::get('/{site}/generate', [QRCodeSiteController::class, 'generate'])->name('generate');
         });
 
         /*
         |------------------------------------------------------------------
-        | Biens
+        | Biens (immobilisations)
         |------------------------------------------------------------------
-        |
-        | Gestion des biens (mobilier, informatique, véhicules, etc.)
-        |
         */
         Route::prefix('biens')->name('biens.')->group(function () {
-            // Liste des biens
-            Route::get('/', \App\Livewire\Biens\ListeBiens::class)->name('index');
-            
-            // Création d'un bien
-            Route::get('/create', \App\Livewire\Biens\FormBien::class)->name('create');
-            
-            // Amortissements
-            Route::get('/amortissements', \App\Livewire\Biens\ListeAmortissements::class)->name('amortissements');
-            
-            // Transfert d'un bien
-            Route::get('/transfert', \App\Livewire\Biens\TransfertBien::class)->name('transfert');
-            
-            // Historique des transferts
-            Route::get('/transfert/historique', \App\Livewire\Biens\HistoriqueTransferts::class)->name('transfert.historique');
-            
-            // Édition d'un bien
-            Route::get('/{bien}/edit', \App\Livewire\Biens\FormBien::class)->name('edit');
-            
-            // Détails d'un bien
-            Route::get('/{bien}', \App\Livewire\Biens\DetailBien::class)->name('show');
-            
-            // Génération du QR code d'un bien
-            Route::get('/{bien}/qr-code', [BienController::class, 'generateQRCode'])->name('qr-code');
-            
-            // Téléchargement de l'étiquette d'un bien (avec code-barres côté client)
-            Route::post('/{bien}/etiquette', [BienController::class, 'downloadEtiquetteWithBarcode'])->name('etiquette.with-barcode');
-            // Téléchargement de l'étiquette d'un bien (avec code-barres de la base)
-            Route::get('/{bien}/etiquette', [BienController::class, 'downloadEtiquette'])->name('etiquette');
-            
-            // Impression en masse d'étiquettes
-            Route::post('/imprimer-etiquettes', [BienController::class, 'imprimerEtiquettes'])->name('imprimer-etiquettes');
-            
-            // Impression groupée par emplacement (21 étiquettes par page A4)
-            Route::post('/imprimer-etiquettes-par-emplacement', [BienController::class, 'imprimerEtiquettesParEmplacement'])->name('imprimer-etiquettes-par-emplacement');
-            // Impression de toutes les étiquettes, groupées par emplacement (un seul fichier)
-            Route::post('/imprimer-etiquettes-tous-emplacements', [BienController::class, 'imprimerEtiquettesTousEmplacements'])->name('imprimer-etiquettes-tous-emplacements');
-            // Impression groupée par intervalle de NumOrdre (33 étiquettes par page A4)
-            Route::post('/imprimer-etiquettes-par-intervalle', [BienController::class, 'imprimerEtiquettesParIntervalle'])->name('imprimer-etiquettes-par-intervalle');
-            
-            // Export Excel des biens
-            Route::get('/export/excel', [BienController::class, 'exportExcel'])->name('export-excel');
+            Route::get('/', ListeBiens::class)->name('index');
+            Route::get('/create', FormBien::class)->middleware('admin')->name('create');
+            Route::get('/transfert', TransfertBien::class)->middleware('admin')->name('transfert');
+            Route::get('/transfert/historique', HistoriqueTransferts::class)->middleware('admin')->name('transfert.historique');
+
+            // Doivent être avant /{bien}
+            // Impression groupée par site (33 étiquettes par page A4)
+            // Impression de toutes les étiquettes, groupées par site (un seul fichier)
+            // Impression groupée par intervalle d'identifiants (33 étiquettes par page A4)
+            Route::get('/export/excel', [BienController::class, 'exportExcel'])->middleware('admin')->name('export-excel');
+            Route::get('/import/modele', [BienController::class, 'modeleImport'])->middleware('admin')->name('import.modele');
+
+            Route::get('/{bien}/edit', FormBien::class)->middleware('admin')->name('edit');
+            Route::get('/{bien}', DetailBien::class)->name('show');
+            // Étiquette avec code-barres généré côté client
+            // Étiquette avec code-barres de la base
         });
 
         /*
         |------------------------------------------------------------------
         | Inventaires
         |------------------------------------------------------------------
-        |
-        | Gestion des inventaires annuels
-        |
         */
         Route::prefix('inventaires')->name('inventaires.')->group(function () {
-            // Liste des inventaires
-            Route::get('/', \App\Livewire\Inventaires\ListeInventaires::class)->name('index');
-            
-            // Création/démarrage d'un inventaire
-            Route::get('/create', \App\Livewire\Inventaires\DemarrerInventaire::class)->name('create');
-            
-            // Dashboard d'un inventaire (vue principale)
-            Route::get('/{inventaire}', \App\Livewire\Inventaires\DashboardInventaire::class)->name('show');
-            
-            // Rapport détaillé d'un inventaire
-            Route::get('/{inventaire}/rapport', \App\Livewire\Inventaires\RapportInventaire::class)->name('rapport');
-            
-            // Export PDF d'un inventaire
-            Route::get('/{inventaire}/export-pdf', [InventaireController::class, 'exportPDF'])->name('export-pdf');
-            
-            // Export Excel d'un inventaire
-            Route::get('/{inventaire}/export-excel', [InventaireController::class, 'exportExcel'])->name('export-excel');
-            
-            // Clôture d'un inventaire
-            Route::post('/{inventaire}/cloturer', [InventaireController::class, 'cloturer'])->name('cloturer');
+            Route::get('/', ListeInventaires::class)->name('index');
+            Route::get('/create', DemarrerInventaire::class)->middleware('admin')->name('create');
+            Route::get('/exports/{exportRequest}/download', [InventaireController::class, 'downloadExport'])
+                ->name('exports.download');
+            Route::get('/{inventaire}', DashboardInventaire::class)->name('show');
+            Route::get('/{inventaire}/rapport', RapportInventaire::class)->name('rapport');
+            Route::get('/{inventaire}/report', ReportInventaire::class)->middleware('admin')->name('report');
+            Route::post('/{inventaire}/export-pdf', [InventaireController::class, 'exportPDF'])->name('export-pdf');
+            Route::post('/{inventaire}/export-excel', [InventaireController::class, 'exportExcel'])->name('export-excel');
+            Route::post('/{inventaire}/cloturer', [InventaireController::class, 'cloturer'])->middleware('admin')->name('cloturer');
         });
-
-        /*
-        |------------------------------------------------------------------
-        | Rapports
-        |------------------------------------------------------------------
-        |
-        | Génération de rapports personnalisés
-        |
-        */
-        // Routes de rapports désactivées pour l'instant (composants à créer)
-        // Route::prefix('rapports')->name('rapports.')->group(function () {
-        //     // Page de génération de rapports
-        //     Route::get('/', \App\Livewire\Rapports\GenerateurRapport::class)->name('index');
-        //     
-        //     // Génération d'un rapport
-        //     Route::post('/generer', [\App\Http\Controllers\RapportController::class, 'generer'])->name('generer');
-        // });
     });
 
     /*
     |----------------------------------------------------------------------
     | Routes avec Middleware 'admin' (Administrateur uniquement)
     |----------------------------------------------------------------------
-    |
-    | Ces routes sont accessibles uniquement aux administrateurs.
-    |
     */
     Route::middleware(['admin'])->group(function () {
-
-        /*
-        |------------------------------------------------------------------
-        | Utilisateurs
-        |------------------------------------------------------------------
-        |
-        | Gestion des utilisateurs (création, modification, etc.)
-        |
-        */
-        Route::prefix('users')->name('users.')->group(function () {
-            // Liste des utilisateurs
-            Route::get('/', \App\Livewire\Users\ListeUsers::class)->name('index');
-            
-            // Création d'un utilisateur
-            Route::get('/create', \App\Livewire\Users\FormUser::class)->name('create');
-            
-            // Édition d'un utilisateur
-            Route::get('/{user}/edit', \App\Livewire\Users\FormUser::class)->name('edit');
-            
-            // Gestion des rôles RBAC
-            Route::get('/roles', \App\Livewire\Users\GestionRoles::class)->name('roles');
+        // Sorties d'immobilisations (réforme, rebut, cession, perte, vol…)
+        Route::prefix('sorties')->name('sorties.')->group(function () {
+            Route::get('/', ListeSorties::class)->name('index');
+            Route::get('/export', [SortieController::class, 'export'])->name('export');
+            Route::get('/{sortie}', DetailSortie::class)->name('show');
+            Route::get('/{sortie}/pv', [SortieController::class, 'pv'])->name('pv');
         });
-
-        /*
-        |------------------------------------------------------------------
-        | Paramètres
-        |------------------------------------------------------------------
-        |
-        | Configuration générale de l'application
-        |
-        */
-        // Route::get('/settings', \App\Livewire\Settings\ParametresGeneraux::class)->name('settings.index');
-
+        Route::prefix('users')->name('users.')->group(function () {
+            Route::get('/', ListeUsers::class)->name('index');
+            Route::get('/create', FormUser::class)->name('create');
+            Route::get('/roles', GestionRoles::class)->name('roles');
+            Route::get('/{user}/edit', FormUser::class)->name('edit');
+        });
     });
 });

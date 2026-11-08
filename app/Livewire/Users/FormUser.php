@@ -3,9 +3,9 @@
 namespace App\Livewire\Users;
 
 use App\Models\User;
-use Livewire\Component;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Component;
 
 class FormUser extends Component
 {
@@ -13,9 +13,13 @@ class FormUser extends Component
      * Propriétés publiques
      */
     public $userId = null;
+
     public $users = ''; // Nom d'utilisateur (colonne 'users' dans la table)
+
     public $mdp = ''; // Mot de passe
+
     public $mdp_confirmation = '';
+
     public $role = 'agent';
 
     /**
@@ -25,17 +29,19 @@ class FormUser extends Component
 
     /**
      * Initialisation du composant
-     * 
-     * @param User|int|string|null $user Instance de l'utilisateur pour l'édition, ID, ou null pour la création
+     *
+     * @param  User|int|string|null  $user  Instance de l'utilisateur pour l'édition, ID, ou null pour la création
      */
     public function mount($user = null): void
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
         if ($user) {
             // Si $user est une chaîne ou un entier (ID), charger l'utilisateur
             if (is_string($user) || is_int($user)) {
                 $user = User::findOrFail($user);
             }
-            
+
             // Vérifier que $user est bien une instance de User
             if ($user instanceof User) {
                 $this->isEdit = true;
@@ -67,8 +73,8 @@ class FormUser extends Component
                 'required',
                 'string',
                 'max:255',
-                $this->isEdit 
-                    ? 'unique:users,users,' . $this->userId . ',idUser'
+                $this->isEdit
+                    ? 'unique:users,users,'.$this->userId.',idUser'
                     : 'unique:users,users',
             ],
             'role' => 'required|in:admin,agent',
@@ -77,12 +83,12 @@ class FormUser extends Component
         // Règles pour le mot de passe
         if ($this->isEdit) {
             // En édition, le mot de passe est optionnel
-            if (!empty($this->mdp)) {
-                $rules['mdp'] = ['required', 'string', 'min:1', 'max:255', 'confirmed'];
+            if (! empty($this->mdp)) {
+                $rules['mdp'] = ['required', 'string', Password::min(8)->mixedCase()->numbers(), 'max:255', 'confirmed'];
             }
         } else {
             // En création, le mot de passe est obligatoire
-            $rules['mdp'] = ['required', 'string', 'min:1', 'max:255', 'confirmed'];
+            $rules['mdp'] = ['required', 'string', Password::min(8)->mixedCase()->numbers(), 'max:255', 'confirmed'];
         }
 
         return $rules;
@@ -98,9 +104,11 @@ class FormUser extends Component
             'users.max' => 'Le nom d\'utilisateur ne peut pas dépasser 255 caractères.',
             'users.unique' => 'Ce nom d\'utilisateur est déjà utilisé.',
             'mdp.required' => 'Le mot de passe est obligatoire.',
-            'mdp.min' => 'Le mot de passe doit contenir au moins 1 caractère.',
+            'mdp.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
             'mdp.max' => 'Le mot de passe ne peut pas dépasser 255 caractères.',
             'mdp.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
+            'mdp.password.mixed' => 'Le mot de passe doit contenir au moins une lettre majuscule et une lettre minuscule.',
+            'mdp.password.numbers' => 'Le mot de passe doit contenir au moins un chiffre.',
             'role.required' => 'Le rôle est obligatoire.',
             'role.in' => 'Le rôle sélectionné est invalide.',
         ];
@@ -111,20 +119,23 @@ class FormUser extends Component
      */
     public function save(): void
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
         $this->validate();
 
         // Vérifier si on peut changer le rôle du dernier admin
         if ($this->isEdit) {
             $user = User::findOrFail($this->userId);
-            
+
             // Vérifier si on change le rôle d'admin vers agent
             if ($user->role === 'admin' && $this->role === 'agent') {
                 $adminsCount = User::where('role', 'admin')
                     ->where('idUser', '!=', $this->userId)
                     ->count();
-                
+
                 if ($adminsCount === 0) {
                     $this->addError('role', 'Impossible de changer le rôle du dernier administrateur.');
+
                     return;
                 }
             }
@@ -137,8 +148,8 @@ class FormUser extends Component
         ];
 
         // Ajouter le mot de passe seulement s'il est fourni
-        if (!empty($this->mdp)) {
-            $data['mdp'] = $this->mdp; // Pas de hash, stockage en clair selon la structure
+        if (! empty($this->mdp)) {
+            $data['mdp'] = Hash::make($this->mdp);
         }
 
         // Créer ou mettre à jour
@@ -150,6 +161,7 @@ class FormUser extends Component
             // En création, le mot de passe est obligatoire
             if (empty($data['mdp'])) {
                 $this->addError('mdp', 'Le mot de passe est obligatoire.');
+
                 return;
             }
             $user = User::create($data);
@@ -176,4 +188,3 @@ class FormUser extends Component
         return view('livewire.users.form-user');
     }
 }
-

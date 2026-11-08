@@ -2,23 +2,30 @@
 
 namespace App\Livewire\Users;
 
+use App\Livewire\Traits\WithSafeTableControls;
 use App\Models\User;
 use Livewire\Component;
 use Livewire\WithPagination;
-use Illuminate\Support\Facades\Hash;
 
 class ListeUsers extends Component
 {
-    use WithPagination;
+    use WithPagination, WithSafeTableControls;
+
+    private const SORT_FIELDS = ['users', 'role', 'idUser'];
 
     /**
      * Propriétés publiques pour les filtres et la recherche
      */
     public $search = '';
+
     public $filterRole = 'all'; // all, admin, agent, superuser, immobilisation, stock
+
     public $sortField = 'users';
+
     public $sortDirection = 'asc';
+
     public $perPage = 20;
+
     public $selectedUsers = [];
 
     /**
@@ -26,6 +33,8 @@ class ListeUsers extends Component
      */
     public function mount(): void
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
         $this->resetPage();
     }
 
@@ -45,13 +54,7 @@ class ListeUsers extends Component
      */
     public function sortBy($field): void
     {
-        if ($this->sortField === $field) {
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            $this->sortField = $field;
-            $this->sortDirection = 'asc';
-        }
-        $this->resetPage();
+        $this->changeSort((string) $field, self::SORT_FIELDS);
     }
 
     /**
@@ -85,28 +88,31 @@ class ListeUsers extends Component
      */
     public function delete($userId): void
     {
+        abort_unless(auth()->user()?->role === 'admin', 403);
+
         $user = User::findOrFail($userId);
 
         // Empêcher la suppression de l'utilisateur connecté
-        if ($user->id === auth()->id()) {
+        if ($user->idUser === auth()->id()) {
             session()->flash('error', 'Vous ne pouvez pas supprimer votre propre compte.');
+
             return;
         }
 
-        // Empêcher de supprimer le dernier admin actif
-        if ($user->role === 'admin' && $user->actif) {
-            $activeAdminsCount = User::where('role', 'admin')
-                ->where('actif', true)
-                ->where('id', '!=', $userId)
+        // Empêcher de supprimer le dernier administrateur
+        if ($user->role === 'admin') {
+            $adminsCount = User::where('role', 'admin')
+                ->where('idUser', '!=', $userId)
                 ->count();
-            
-            if ($activeAdminsCount === 0) {
-                session()->flash('error', 'Impossible de supprimer le dernier administrateur actif.');
+
+            if ($adminsCount === 0) {
+                session()->flash('error', 'Impossible de supprimer le dernier administrateur.');
+
                 return;
             }
         }
 
-        $userName = $user->name;
+        $userName = $user->users;
         $user->delete();
 
         session()->flash('success', "L'utilisateur {$userName} a été supprimé avec succès.");
@@ -123,10 +129,7 @@ class ListeUsers extends Component
         // Recherche
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('name', 'like', '%' . $this->search . '%')
-                  ->orWhere('email', 'like', '%' . $this->search . '%')
-                  ->orWhere('service', 'like', '%' . $this->search . '%')
-                  ->orWhere('telephone', 'like', '%' . $this->search . '%');
+                $q->where('users', 'like', '%'.$this->search.'%');
             });
         }
 
@@ -138,7 +141,10 @@ class ListeUsers extends Component
         // Note: La table users n'a pas de colonne 'actif', ce filtre a été supprimé
 
         // Tri
-        $query->orderBy($this->sortField, $this->sortDirection);
+        $query->orderBy(
+            $this->resolveSortField(self::SORT_FIELDS, 'users'),
+            $this->resolveSortDirection(),
+        );
 
         return $query;
     }
@@ -148,7 +154,7 @@ class ListeUsers extends Component
      */
     public function getUsersProperty()
     {
-        return $this->getUsersQuery()->paginate($this->perPage);
+        return $this->getUsersQuery()->paginate($this->resolvePageSize());
     }
 
     /**
@@ -156,10 +162,16 @@ class ListeUsers extends Component
      */
     public function getStatsProperty()
     {
+        $stats = User::query()
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admins")
+            ->selectRaw("SUM(CASE WHEN role = 'agent' THEN 1 ELSE 0 END) as agents")
+            ->first();
+
         return [
-            'total' => User::count(),
-            'admins' => User::where('role', 'admin')->count(),
-            'agents' => User::where('role', 'agent')->count(),
+            'total' => (int) ($stats->total ?? 0),
+            'admins' => (int) ($stats->admins ?? 0),
+            'agents' => (int) ($stats->agents ?? 0),
         ];
     }
 
@@ -174,4 +186,3 @@ class ListeUsers extends Component
         ]);
     }
 }
-

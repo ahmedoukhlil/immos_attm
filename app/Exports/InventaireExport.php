@@ -2,15 +2,15 @@
 
 namespace App\Exports;
 
-use App\Models\Inventaire;
-use App\Exports\Sheets\SyntheseSheet;
-use App\Exports\Sheets\LocalisationsSheet;
-use App\Exports\Sheets\BiensPresentsSheet;
-use App\Exports\Sheets\BiensDeplacesSheet;
 use App\Exports\Sheets\BiensAbsentsSheet;
+use App\Exports\Sheets\BiensDeplacesSheet;
 use App\Exports\Sheets\BiensNonScannesSheet;
-use App\Exports\Sheets\PerformanceAgentsSheet;
+use App\Exports\Sheets\BiensPresentsSheet;
+use App\Exports\Sheets\LocalisationsSheet;
 use App\Exports\Sheets\MouvementsSheet;
+use App\Exports\Sheets\PerformanceAgentsSheet;
+use App\Exports\Sheets\SyntheseSheet;
+use App\Models\Inventaire;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
@@ -26,8 +26,6 @@ class InventaireExport implements WithMultipleSheets
 
     /**
      * Constructeur
-     * 
-     * @param Inventaire $inventaire
      */
     public function __construct(Inventaire $inventaire)
     {
@@ -36,8 +34,6 @@ class InventaireExport implements WithMultipleSheets
 
     /**
      * Retourne les différents onglets du fichier Excel
-     * 
-     * @return array
      */
     public function sheets(): array
     {
@@ -53,4 +49,3 @@ class InventaireExport implements WithMultipleSheets
         ];
     }
 }
-

@@ -1,8 +1,18 @@
 <?php
 
+use App\Http\Middleware\CanManageInventaire;
+use App\Http\Middleware\CheckSessionTimeout;
+use App\Http\Middleware\EnsureApiInventoryAccess;
+use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\SecurityHeaders;
+use App\Models\Immobilisation;
+use App\Models\Localisation;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,21 +22,32 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             // Configuration des route model bindings personnalisés
-            \Illuminate\Support\Facades\Route::bind('bien', function ($value) {
-                return \App\Models\Gesimmo::where('NumOrdre', $value)->firstOrFail();
+            Route::bind('bien', function ($value) {
+                return Immobilisation::findOrFail($value);
             });
-            
-            \Illuminate\Support\Facades\Route::bind('localisation', function ($value) {
-                return \App\Models\LocalisationImmo::where('idLocalisation', $value)->firstOrFail();
+
+            Route::bind('localisation', function ($value) {
+                return Localisation::findOrFail($value);
             });
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(SecurityHeaders::class);
+
+        // Derrière un tunnel ou un proxy HTTPS (ngrok, test sur téléphone) : TRUSTED_PROXIES=* dans .env.
+        // Sans cette variable, aucun proxy n'est approuvé.
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
+
         // Enregistrement des middlewares personnalisés
         $middleware->alias([
-            'admin' => \App\Http\Middleware\IsAdmin::class,
-            'inventory' => \App\Http\Middleware\CanManageInventaire::class,
-            'session.timeout' => \App\Http\Middleware\CheckSessionTimeout::class,
+            'admin' => IsAdmin::class,
+            'inventory' => CanManageInventaire::class,
+            'session.timeout' => CheckSessionTimeout::class,
+            'api.inventory' => EnsureApiInventoryAccess::class,
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

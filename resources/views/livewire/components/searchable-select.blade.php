@@ -50,6 +50,7 @@
     class="relative {{ $containerClass }}"
     style="z-index: 100;"
     :style="{ 'z-index': open ? '9999' : '100' }"
+    role="group"
 >
     {{-- Hidden input pour les formulaires --}}
     @if($name)
@@ -61,11 +62,16 @@
         type="button"
         @click="open = !open"
         :disabled="{{ $disabled ? 'true' : 'false' }}"
-        class="relative w-full bg-white border border-gray-300 rounded-lg shadow-sm pl-3 pr-10 py-2.5 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-150 {{ $disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-indigo-400 hover:shadow-md' }} {{ $inputClass }}"
+        class="relative w-full bg-white border border-gray-300 rounded-lg shadow-sm pl-3 {{ $allowClear && $value ? 'pr-16' : 'pr-10' }} py-2.5 text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all duration-150 {{ $disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:border-indigo-400 hover:shadow-md' }} {{ $inputClass }}"
         :class="{ 
             'ring-2 ring-indigo-500 border-indigo-500 shadow-md': open,
             'bg-indigo-50 border-indigo-300': @js($value) && !open
         }"
+        role="combobox"
+        aria-haspopup="listbox"
+        :aria-expanded="open"
+        aria-controls="searchable-options-{{ $this->getId() }}"
+        aria-label="{{ $placeholder }}"
     >
         <span class="flex items-center">
             @if($value)
@@ -78,20 +84,8 @@
             </span>
         </span>
         
-        {{-- Icônes et actions --}}
-        <span class="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
-            @if($allowClear && $value)
-                <button
-                    type="button"
-                    wire:click.stop="clear"
-                    class="p-1 rounded-md hover:bg-indigo-100 text-gray-400 hover:text-indigo-600 transition-colors"
-                    title="Effacer la sélection"
-                >
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            @endif
+        {{-- Indicateur d'ouverture --}}
+        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
             <svg 
                 class="h-5 w-5 text-gray-400 transition-all duration-200"
                 :class="{ 'rotate-180 text-indigo-500': open }"
@@ -104,6 +98,20 @@
         </span>
     </button>
 
+    @if($allowClear && $value)
+        <button
+            type="button"
+            wire:click.stop="clear"
+            class="absolute right-8 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-gray-400 transition-colors hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            aria-label="Effacer la sélection"
+            title="Effacer la sélection"
+        >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    @endif
+
     {{-- Dropdown --}}
     <div
         x-show="open"
@@ -115,6 +123,8 @@
         x-transition:leave-start="transform opacity-100 scale-100"
         x-transition:leave-end="transform opacity-0 scale-95"
         x-ref="dropdown"
+        id="searchable-options-{{ $this->getId() }}"
+        role="listbox"
         class="absolute mt-2 w-full bg-white shadow-xl rounded-xl border border-gray-200 overflow-hidden"
         style="max-height: 400px; z-index: 9999;"
     >
@@ -171,6 +181,11 @@
                     wire:click="selectOption('{{ $option['value'] }}')"
                     @click="open = false; focusedIndex = -1"
                     @mouseenter="focusedIndex = {{ $loop->index }}"
+                    @keydown.enter.prevent="$el.click()"
+                    @keydown.space.prevent="$el.click()"
+                    role="option"
+                    tabindex="0"
+                    aria-selected="{{ $option['value'] == $value ? 'true' : 'false' }}"
                     class="cursor-pointer select-none relative px-3 py-2.5 transition-colors duration-100 
                            {{ $option['value'] == $value ? 'bg-indigo-600 text-white' : 'text-gray-900 hover:bg-indigo-50' }}"
                     :class="{ 'bg-indigo-100 ring-2 ring-inset ring-indigo-400': focusedIndex === {{ $loop->index }} && '{{ $option['value'] }}' != '{{ $value }}' }"

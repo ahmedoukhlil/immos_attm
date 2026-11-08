@@ -2,9 +2,9 @@
 
 namespace App\Livewire\Traits;
 
-use App\Models\LocalisationImmo;
-use App\Models\Affectation;
-use App\Models\Emplacement;
+use App\Models\Localisation;
+use App\Models\Site;
+use App\Services\ReferenceCache;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -15,150 +15,55 @@ trait WithCachedOptions
 {
     /**
      * Retourne les options de localisations avec cache
-     * 
-     * @param int $cacheDuration Durée du cache en secondes (default: 300 = 5 minutes)
-     * @return array
+     *
+     * @param  int  $cacheDuration  Durée du cache en secondes (default: 300 = 5 minutes)
      */
     protected function getCachedLocalisationOptions(int $cacheDuration = 300): array
     {
-        return Cache::remember('localisation_options_all', $cacheDuration, function () {
-            return LocalisationImmo::select('idLocalisation', 'Localisation', 'CodeLocalisation')
-                ->orderBy('Localisation')
+        return Cache::remember(ReferenceCache::key('localisations', 'options_all'), $cacheDuration, function () {
+            return Localisation::select('id', 'localisation', 'code')
+                ->orderBy('localisation')
                 ->get()
-                ->map(function ($localisation) {
-                    return [
-                        'value' => (string)$localisation->idLocalisation,
-                        'text' => ($localisation->CodeLocalisation ? $localisation->CodeLocalisation . ' - ' : '') . $localisation->Localisation,
-                    ];
-                })
+                ->map(fn (Localisation $localisation): array => [
+                    'value' => (string) $localisation->id,
+                    'text' => ($localisation->code ? $localisation->code.' - ' : '').$localisation->localisation,
+                ])
                 ->toArray();
         });
     }
 
     /**
-     * Retourne les options d'affectations filtrées par localisation avec cache
-     * 
-     * @param int|null $idLocalisation ID de la localisation pour filtrer
-     * @param int $cacheDuration Durée du cache en secondes
-     * @return array
+     * Retourne les options de sites, éventuellement filtrés par localisation, avec cache
+     *
+     * @param  int|null  $localisationId  ID de la localisation pour filtrer
+     * @param  int  $cacheDuration  Durée du cache en secondes
+     * @param  bool  $withDetails  Préfixer le libellé par la localisation
      */
-    protected function getCachedAffectationOptions(?int $idLocalisation = null, int $cacheDuration = 300): array
-    {
-        // Si aucune localisation, retourner toutes les affectations
-        if (empty($idLocalisation)) {
-            return Cache::remember('affectation_options_all', $cacheDuration, function () {
-                return Affectation::select('idAffectation', 'Affectation', 'CodeAffectation')
-                    ->orderBy('Affectation')
-                    ->get()
-                    ->map(function ($affectation) {
-                        return [
-                            'value' => (string)$affectation->idAffectation,
-                            'text' => ($affectation->CodeAffectation ? $affectation->CodeAffectation . ' - ' : '') . $affectation->Affectation,
-                        ];
-                    })
-                    ->toArray();
-            });
-        }
-
-        // Avec filtrage par localisation — les affectations rattachées directement
-        // à cette localisation
-        $cacheKey = 'affectation_options_loc_' . $idLocalisation;
-
-        return Cache::remember($cacheKey, $cacheDuration, function () use ($idLocalisation) {
-            return Affectation::select('idAffectation', 'Affectation', 'CodeAffectation')
-                ->where('idLocalisation', $idLocalisation)
-                ->orderBy('Affectation')
-                ->get()
-                ->map(function ($affectation) {
-                    return [
-                        'value' => (string)$affectation->idAffectation,
-                        'text' => ($affectation->CodeAffectation ? $affectation->CodeAffectation . ' - ' : '') . $affectation->Affectation,
-                    ];
-                })
-                ->toArray();
-        });
-    }
-
-    /**
-     * Retourne les options d'emplacements filtrés par localisation et/ou affectation avec cache
-     * 
-     * @param int|null $idLocalisation ID de la localisation pour filtrer
-     * @param int|null $idAffectation ID de l'affectation pour filtrer
-     * @param int $cacheDuration Durée du cache en secondes
-     * @param bool $withDetails Inclure les détails (localisation, affectation) dans le texte
-     * @return array
-     */
-    protected function getCachedEmplacementOptions(
-        ?int $idLocalisation = null,
-        ?int $idAffectation = null,
+    protected function getCachedSiteOptions(
+        ?int $localisationId = null,
         int $cacheDuration = 300,
         bool $withDetails = false
     ): array {
-        // Si aucun filtre, retourner tous les emplacements
-        if (empty($idLocalisation) && empty($idAffectation)) {
-            $cacheKey = $withDetails ? 'emplacement_options_all_detailed' : 'emplacement_options_all';
-            
-            return Cache::remember($cacheKey, $cacheDuration, function () use ($withDetails) {
-                $query = Emplacement::select('idEmplacement', 'Emplacement', 'CodeEmplacement', 'idLocalisation', 'idAffectation');
-                
-                if ($withDetails) {
-                    $query->with(['localisation:idLocalisation,Localisation,CodeLocalisation', 'affectation:idAffectation,Affectation']);
-                }
-                
-                return $query->orderBy('Emplacement')
-                    ->get()
-                    ->map(function ($emplacement) use ($withDetails) {
-                        $text = ($emplacement->CodeEmplacement ? $emplacement->CodeEmplacement . ' - ' : '') . $emplacement->Emplacement;
-                        
-                        if ($withDetails && $emplacement->localisation) {
-                            $text = $emplacement->localisation->Localisation . ' > ' . 
-                                   ($emplacement->affectation ? $emplacement->affectation->Affectation . ' > ' : '') . 
-                                   $text;
-                        }
-                        
-                        return [
-                            'value' => (string)$emplacement->idEmplacement,
-                            'text' => $text,
-                        ];
-                    })
-                    ->toArray();
-            });
-        }
+        $cacheKey = ReferenceCache::key(
+            'sites',
+            'options_'.($localisationId ?? 'all').($withDetails ? '_detailed' : ''),
+        );
 
-        // Avec filtrage
-        $cacheKey = 'emplacement_options_' . ($idLocalisation ?? 'none') . '_' . ($idAffectation ?? 'none');
-        if ($withDetails) {
-            $cacheKey .= '_detailed';
-        }
-        
-        return Cache::remember($cacheKey, $cacheDuration, function () use ($idLocalisation, $idAffectation, $withDetails) {
-            $query = Emplacement::select('idEmplacement', 'Emplacement', 'CodeEmplacement', 'idLocalisation', 'idAffectation');
-            
-            if (!empty($idLocalisation)) {
-                $query->where('idLocalisation', $idLocalisation);
-            }
-            
-            if (!empty($idAffectation)) {
-                $query->where('idAffectation', $idAffectation);
-            }
-            
-            if ($withDetails) {
-                $query->with(['localisation:idLocalisation,Localisation,CodeLocalisation', 'affectation:idAffectation,Affectation']);
-            }
-            
-            return $query->orderBy('Emplacement')
+        return Cache::remember($cacheKey, $cacheDuration, function () use ($localisationId, $withDetails) {
+            return Site::select('id', 'site', 'code', 'responsable', 'localisation_id')
+                ->when($localisationId, fn ($query) => $query->where('localisation_id', $localisationId))
+                ->when($withDetails, fn ($query) => $query->with('localisation:id,localisation'))
+                ->orderBy('site')
                 ->get()
-                ->map(function ($emplacement) use ($withDetails) {
-                    $text = ($emplacement->CodeEmplacement ? $emplacement->CodeEmplacement . ' - ' : '') . $emplacement->Emplacement;
-                    
-                    if ($withDetails && $emplacement->localisation) {
-                        $text = $emplacement->localisation->Localisation . ' > ' . 
-                               ($emplacement->affectation ? $emplacement->affectation->Affectation . ' > ' : '') . 
-                               $text;
+                ->map(function (Site $site) use ($withDetails): array {
+                    $text = $site->site.($site->responsable ? ' ('.$site->responsable.')' : '');
+
+                    if ($withDetails && $site->localisation) {
+                        $text = $site->localisation->localisation.' > '.$text;
                     }
-                    
+
                     return [
-                        'value' => (string)$emplacement->idEmplacement,
+                        'value' => (string) $site->id,
                         'text' => $text,
                     ];
                 })
@@ -171,39 +76,14 @@ trait WithCachedOptions
      */
     protected function invalidateLocalisationCache(): void
     {
-        Cache::forget('localisation_options_all');
+        ReferenceCache::invalidate('localisations', 'sites');
     }
 
     /**
-     * Invalide le cache pour les affectations
-     * 
-     * @param int|null $idLocalisation Si fourni, invalide seulement le cache pour cette localisation
+     * Invalide le cache pour les sites
      */
-    protected function invalidateAffectationCache(?int $idLocalisation = null): void
+    protected function invalidateSiteCache(): void
     {
-        if ($idLocalisation) {
-            Cache::forget('affectation_options_loc_' . $idLocalisation);
-        } else {
-            // Invalider le cache global
-            Cache::forget('affectation_options_all');
-            
-            // Note: Pour invalider tous les caches par localisation, il faudrait les lister
-            // ou utiliser des tags de cache (disponible avec Redis)
-        }
-    }
-
-    /**
-     * Invalide le cache pour les emplacements
-     * 
-     * @param int|null $idLocalisation
-     * @param int|null $idAffectation
-     */
-    protected function invalidateEmplacementCache(?int $idLocalisation = null, ?int $idAffectation = null): void
-    {
-        $cacheKey = 'emplacement_options_' . ($idLocalisation ?? 'none') . '_' . ($idAffectation ?? 'none');
-        Cache::forget($cacheKey);
-        Cache::forget($cacheKey . '_detailed');
-        Cache::forget('emplacement_options_all');
-        Cache::forget('emplacement_options_all_detailed');
+        ReferenceCache::invalidate('sites');
     }
 }

@@ -2,442 +2,225 @@
 
 namespace App\Livewire\Biens;
 
-use App\Models\Gesimmo;
-use App\Models\Designation;
-use App\Models\Categorie;
-use App\Models\Etat;
-use App\Models\Emplacement;
-use App\Models\LocalisationImmo;
-use App\Models\Affectation;
-use App\Models\NatureJuridique;
-use App\Models\SourceFinancement;
 use App\Livewire\Traits\WithCachedOptions;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Categorie;
+use App\Models\Designation;
+use App\Models\Etat;
+use App\Models\Immobilisation;
+use App\Models\Site;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
+/**
+ * Formulaire d'immobilisation calqué sur les colonnes du fichier « Inventaire Immo ».
+ */
+#[Layout('components.layouts.app')]
 class FormBien extends Component
 {
     use WithCachedOptions;
-    /**
-     * Instance de l'immobilisation (null si création)
-     */
-    public $bien = null;
 
-    /**
-     * ID de l'immobilisation pour l'édition
-     */
+    public ?Immobilisation $bien = null;
+
+    #[Locked]
     public $bienId = null;
 
-    /**
-     * Propriétés du formulaire
-     */
-    public $idDesignation = '';
-    public $idCategorie = '';
-    public $idEtat = '';
-    public $idLocalisation = ''; // Pour le filtrage hiérarchique
-    public $idAffectation = ''; // Pour le filtrage hiérarchique
-    public $idEmplacement = '';
-    public $idNatJur = '';
-    public $idSF = '';
-    public $DateAcquisition = '';
-    public $valeur_acquisition = '';
-    public $date_mise_en_service = '';
+    /** Force le remontage des listes de choix après un import Excel. */
+    public int $referencesVersion = 0;
+
+    public $localisation_id = ''; // Filtre des sites
+
+    public $site_id = '';
+
+    public $categorie_id = '';
+
+    public $designation_id = '';
+
+    public $descriptif = '';
+
+    public $marque = '';
+
+    public $modele = '';
+
+    public $numero_chassis = '';
+
+    public $numero_attm = '';
+
+    public $code_immo = '';
+
+    public $etat_id = '';
+
+    public $code_dernier_inventaire = '';
+
+    public $code_premier_inventaire = '';
+
+    public $annee_acquisition = '';
+
+    public $autres_informations = '';
+
     public $quantite = 1;
 
-    /**
-     * Mise à jour automatique de la catégorie lorsque la désignation change
-     */
-    public function updatedIdDesignation($value)
+    public function mount(?Immobilisation $bien = null): void
     {
-        if (!empty($value)) {
-            $designation = Designation::with('categorie')->find($value);
-            if ($designation && $designation->categorie) {
-                $this->idCategorie = $designation->categorie->idCategorie;
-            } else {
-                $this->idCategorie = '';
-            }
-        } else {
-            $this->idCategorie = '';
-        }
-    }
-
-    /**
-     * Réagit au changement de localisation
-     * Réinitialise l'affectation et l'emplacement
-     */
-    public function updatedIdLocalisation($value)
-    {
-        // Vérifier si l'affectation actuelle appartient toujours à la nouvelle localisation
-        if (!empty($this->idAffectation)) {
-            $affectation = Affectation::find($this->idAffectation);
-            if (!$affectation || $affectation->idLocalisation != $value) {
-                $this->idAffectation = '';
-                $this->idEmplacement = '';
-            }
-        } else {
-            $this->idEmplacement = '';
-        }
-    }
-
-    /**
-     * Réagit au changement d'affectation
-     * Réinitialise l'emplacement
-     */
-    public function updatedIdAffectation($value)
-    {
-        // Vérifier si l'emplacement actuel appartient toujours à la nouvelle affectation
-        if (!empty($this->idEmplacement)) {
-            $emplacement = Emplacement::find($this->idEmplacement);
-            if (!$emplacement || $emplacement->idAffectation != $value) {
-                $this->idEmplacement = '';
-            }
-        }
-    }
-
-    /**
-     * Initialisation du composant
-     * 
-     * @param Gesimmo|null $bien Instance de l'immobilisation pour l'édition, null pour la création
-     */
-    public function mount($bien = null): void
-    {
-        if ($bien) {
+        if ($bien?->exists) {
             $this->bien = $bien;
-            $this->bienId = $bien->NumOrdre;
-            $this->idDesignation = (string) ($bien->idDesignation ?? '');
-            $this->idCategorie = (string) ($bien->idCategorie ?? '');
-            $this->idEtat = (string) ($bien->idEtat ?? '');
-            $this->idEmplacement = (string) ($bien->idEmplacement ?? '');
-            $this->idNatJur = (string) ($bien->idNatJur ?? '');
-            $this->idSF = (string) ($bien->idSF ?? '');
-            $this->DateAcquisition = $bien->DateAcquisition ?? '';
-            $this->valeur_acquisition = $bien->valeur_acquisition ?? '';
-            $this->date_mise_en_service = $bien->date_mise_en_service ? $bien->date_mise_en_service->format('Y-m-d') : '';
+            $this->bienId = $bien->id;
+            $this->site_id = (string) $bien->site_id;
+            $this->localisation_id = (string) ($bien->site?->localisation_id ?? '');
+            $this->categorie_id = (string) $bien->categorie_id;
+            $this->designation_id = (string) $bien->designation_id;
+            $this->descriptif = $bien->descriptif ?? '';
+            $this->marque = $bien->marque ?? '';
+            $this->modele = $bien->modele ?? '';
+            $this->numero_chassis = $bien->numero_chassis ?? '';
+            $this->numero_attm = $bien->numero_attm ?? '';
+            $this->code_immo = $bien->code_immo ?? '';
+            $this->etat_id = (string) $bien->etat_id;
+            $this->code_dernier_inventaire = $bien->code_dernier_inventaire ?? '';
+            $this->code_premier_inventaire = $bien->code_premier_inventaire ?? '';
+            $this->annee_acquisition = (string) ($bien->annee_acquisition ?? '');
+            $this->autres_informations = $bien->autres_informations ?? '';
 
-            if ($bien->idEmplacement) {
-                $emplacement = Emplacement::find($bien->idEmplacement);
-                if ($emplacement) {
-                    $this->idLocalisation = (string) ($emplacement->idLocalisation ?? '');
-                    $this->idAffectation = (string) ($emplacement->idAffectation ?? '');
-                }
-            }
-        } else {
-            $this->DateAcquisition = now()->year;
-            $this->quantite = 1;
-            // Pré-sélection des valeurs les plus fréquentes pour accélérer la saisie
-            $this->idEtat = '1';   // Bon Etat
-            $this->idNatJur = '1'; // Propriété
-            $this->idSF = '1';     // Fonds Propres
+            return;
+        }
+
+        // Pré-sélection de l'état le plus fréquent pour accélérer la saisie
+        $this->etat_id = (string) (Etat::where('code', 'BON')->value('id') ?? '');
+        $this->annee_acquisition = (string) now()->year;
+    }
+
+    /**
+     * La catégorie suit celle de la désignation choisie.
+     */
+    public function updatedDesignationId($value): void
+    {
+        $categorieId = $value ? Designation::whereKey($value)->value('categorie_id') : null;
+        $this->categorie_id = $categorieId ? (string) $categorieId : '';
+    }
+
+    /**
+     * Change de localisation : le site doit lui appartenir.
+     */
+    public function updatedLocalisationId($value): void
+    {
+        if ($this->site_id && (string) Site::whereKey($this->site_id)->value('localisation_id') !== (string) $value) {
+            $this->site_id = '';
         }
     }
 
-    /**
-     * Propriété calculée : Retourne toutes les désignations
-     */
-    public function getDesignationsProperty()
+    #[On('referentiels-importes')]
+    public function rafraichirReferentiels(): void
     {
-        return Designation::with('categorie')
-            ->orderBy('designation')
-            ->get();
+        // Les modèles invalident déjà le cache partagé via leur observer.
+        // Une nouvelle clé Livewire est néanmoins nécessaire, car chaque
+        // SearchableSelect conserve sa copie des options depuis son montage.
+        $this->referencesVersion++;
     }
 
-    /**
-     * Options pour SearchableSelect : Désignations
-     */
-    public function getDesignationOptionsProperty()
+    public function getDesignationOptionsProperty(): array
     {
-        return Designation::with('categorie')
+        return Designation::with('categorie:id,categorie')
             ->orderBy('designation')
             ->get()
-            ->map(function ($designation) {
-                return [
-                    'value' => (string)$designation->id,
-                    'text' => $designation->designation . ($designation->categorie ? ' (' . $designation->categorie->Categorie . ')' : ''),
-                ];
-            })
+            ->map(fn (Designation $designation): array => [
+                'value' => (string) $designation->id,
+                'text' => $designation->designation.($designation->categorie ? ' ('.$designation->categorie->categorie.')' : ''),
+            ])
             ->toArray();
     }
 
-    /**
-     * Propriété calculée : Retourne toutes les catégories
-     */
-    public function getCategoriesProperty()
+    public function getCategorieOptionsProperty(): array
     {
-        return Categorie::orderBy('Categorie')->get();
-    }
-
-    /**
-     * Options pour SearchableSelect : Catégories
-     */
-    public function getCategorieOptionsProperty()
-    {
-        return Categorie::orderBy('Categorie')
+        return Categorie::orderBy('categorie')
             ->get()
-            ->map(function ($categorie) {
-                return [
-                    'value' => (string)$categorie->idCategorie,
-                    'text' => $categorie->Categorie,
-                ];
-            })
+            ->map(fn (Categorie $categorie): array => [
+                'value' => (string) $categorie->id,
+                'text' => $categorie->categorie.($categorie->imputation_comptable ? ' — '.$categorie->imputation_comptable : ''),
+            ])
             ->toArray();
     }
 
-    /**
-     * Propriété calculée : Retourne tous les états
-     */
-    public function getEtatsProperty()
+    public function getEtatOptionsProperty(): array
     {
-        return Etat::orderBy('Etat')->get();
-    }
-
-    /**
-     * Options pour SearchableSelect : États
-     */
-    public function getEtatOptionsProperty()
-    {
-        return Etat::orderBy('Etat')
+        return Etat::orderBy('id')
             ->get()
-            ->map(function ($etat) {
-                return [
-                    'value' => (string)$etat->idEtat,
-                    'text' => $etat->Etat,
-                ];
-            })
+            ->map(fn (Etat $etat): array => [
+                'value' => (string) $etat->id,
+                'text' => $etat->etat,
+            ])
             ->toArray();
     }
 
-    /**
-     * Options pour SearchableSelect : Localisations
-     * Optimisé avec cache pour des performances ultra-rapides
-     */
-    public function getLocalisationOptionsProperty()
+    public function getLocalisationOptionsProperty(): array
     {
         return $this->getCachedLocalisationOptions();
     }
 
-    /**
-     * Options pour SearchableSelect : Affectations
-     * Filtrées selon la localisation sélectionnée
-     * Optimisé avec cache pour des performances ultra-rapides
-     */
-    public function getAffectationOptionsProperty()
+    public function getSiteOptionsProperty(): array
     {
-        return $this->getCachedAffectationOptions($this->idLocalisation);
+        return $this->getCachedSiteOptions($this->localisation_id !== '' ? (int) $this->localisation_id : null);
     }
 
     /**
-     * Propriété calculée : Retourne tous les emplacements avec leurs relations
-     * Groupés par localisation pour faciliter la sélection
+     * Responsable du site sélectionné, affiché à titre d'information.
      */
-    public function getEmplacementsProperty()
+    public function getResponsableProperty(): ?string
     {
-        return Emplacement::with(['localisation', 'affectation'])
-            ->orderBy('Emplacement')
-            ->get()
-            ->map(function ($emplacement) {
-                // Ajouter un attribut calculé pour l'affichage
-                $emplacement->display_name = $this->getEmplacementDisplayName($emplacement);
-                return $emplacement;
-            });
+        return $this->site_id ? Site::whereKey($this->site_id)->value('responsable') : null;
     }
 
-    /**
-     * Options pour SearchableSelect : Emplacements
-     * Filtrés selon la localisation et l'affectation sélectionnées
-     * Optimisé pour des performances instantanées
-     */
-    public function getEmplacementOptionsProperty()
-    {
-        $query = Emplacement::select(
-            'idEmplacement',
-            'Emplacement',
-            'CodeEmplacement',
-            'idLocalisation',
-            'idAffectation'
-        )->orderBy('Emplacement');
-        
-        // Filtrer par localisation si sélectionnée
-        if (!empty($this->idLocalisation)) {
-            $query->where('idLocalisation', $this->idLocalisation);
-        }
-        
-        // Filtrer par affectation si sélectionnée
-        if (!empty($this->idAffectation)) {
-            $query->where('idAffectation', $this->idAffectation);
-        }
-        
-        $emplacements = $query->get();
-        
-        // Charger les relations en une seule requête si nécessaire
-        if ($emplacements->isNotEmpty()) {
-            $localisationIds = $emplacements->pluck('idLocalisation')->unique()->filter();
-            $affectationIds = $emplacements->pluck('idAffectation')->unique()->filter();
-            
-            $localisations = collect();
-            $affectations = collect();
-            
-            if ($localisationIds->isNotEmpty()) {
-                $localisations = LocalisationImmo::select('idLocalisation', 'Localisation', 'CodeLocalisation')
-                    ->whereIn('idLocalisation', $localisationIds)
-                    ->get()
-                    ->keyBy('idLocalisation');
-            }
-            
-            if ($affectationIds->isNotEmpty()) {
-                $affectations = Affectation::select('idAffectation', 'Affectation', 'CodeAffectation')
-                    ->whereIn('idAffectation', $affectationIds)
-                    ->get()
-                    ->keyBy('idAffectation');
-            }
-            
-            // Ajouter les relations
-            $emplacements->each(function ($emplacement) use ($localisations, $affectations) {
-                $emplacement->localisation = $localisations->get($emplacement->idLocalisation);
-                $emplacement->affectation = $affectations->get($emplacement->idAffectation);
-            });
-        }
-        
-        return $emplacements
-            ->map(function ($emplacement) {
-                return [
-                    'value' => (string)$emplacement->idEmplacement,
-                    'text' => ($emplacement->CodeEmplacement ? $emplacement->CodeEmplacement . ' - ' : '') . $emplacement->Emplacement,
-                ];
-            })
-            ->toArray();
-    }
-    
-    /**
-     * Génère le nom d'affichage d'un emplacement avec ses relations
-     */
-    private function getEmplacementDisplayName($emplacement): string
-    {
-        $parts = [];
-        
-        // Localisation
-        if ($emplacement->localisation) {
-            $parts[] = $emplacement->localisation->Localisation ?? '';
-            if ($emplacement->localisation->CodeLocalisation) {
-                $parts[] = '(' . $emplacement->localisation->CodeLocalisation . ')';
-            }
-        }
-        
-        // Affectation
-        if ($emplacement->affectation) {
-            $parts[] = '- ' . ($emplacement->affectation->Affectation ?? '');
-        }
-        
-        // Emplacement
-        $parts[] = '- ' . ($emplacement->Emplacement ?? '');
-        
-        return implode(' ', array_filter($parts));
-    }
-
-    /**
-     * Propriété calculée : Retourne toutes les natures juridiques
-     */
-    public function getNatureJuridiquesProperty()
-    {
-        return NatureJuridique::orderBy('NatJur')->get();
-    }
-
-    /**
-     * Options pour SearchableSelect : Natures juridiques
-     */
-    public function getNatureJuridiqueOptionsProperty()
-    {
-        return NatureJuridique::orderBy('NatJur')
-            ->get()
-            ->map(function ($natJur) {
-                return [
-                    'value' => (string)$natJur->idNatJur,
-                    'text' => $natJur->NatJur,
-                ];
-            })
-            ->toArray();
-    }
-
-    /**
-     * Propriété calculée : Retourne toutes les sources de financement
-     */
-    public function getSourceFinancementsProperty()
-    {
-        return SourceFinancement::orderBy('SourceFin')->get();
-    }
-
-    /**
-     * Options pour SearchableSelect : Sources de financement
-     */
-    public function getSourceFinancementOptionsProperty()
-    {
-        return SourceFinancement::orderBy('SourceFin')
-            ->get()
-            ->map(function ($sourceFin) {
-                return [
-                    'value' => (string)$sourceFin->idSF,
-                    'text' => $sourceFin->SourceFin,
-                ];
-            })
-            ->toArray();
-    }
-
-    /**
-     * Propriété calculée : Vérifie si on est en mode édition
-     */
     public function getIsEditProperty(): bool
     {
         return $this->bien !== null;
     }
 
-    /**
-     * Règles de validation
-     */
     protected function rules(): array
     {
         $rules = [
-            'idDesignation' => 'required|exists:designation,id',
-            'idCategorie' => 'required|exists:categorie,idCategorie',
-            'idEtat' => 'required|exists:etat,idEtat',
-            'idEmplacement' => 'required|exists:emplacement,idEmplacement',
-            'idNatJur' => 'required|exists:naturejurdique,idNatJur',
-            'idSF' => 'required|exists:sourcefinancement,idSF',
-            'DateAcquisition' => 'nullable|integer|min:1900|max:' . (now()->year + 1),
-            'valeur_acquisition' => 'nullable|numeric|min:0',
-            'date_mise_en_service' => 'nullable|date',
+            'site_id' => 'required|exists:sites,id',
+            'categorie_id' => 'required|exists:categories,id',
+            'designation_id' => 'required|exists:designations,id',
+            'descriptif' => 'nullable|string|max:255',
+            'marque' => 'nullable|string|max:100',
+            'modele' => 'nullable|string|max:100',
+            'numero_chassis' => 'nullable|string|max:100',
+            'numero_attm' => 'nullable|string|max:100',
+            'code_immo' => 'nullable|string|max:100',
+            'etat_id' => 'required|exists:etats,id',
+            'code_dernier_inventaire' => 'nullable|string|max:40',
+            'code_premier_inventaire' => 'nullable|string|max:40',
+            'annee_acquisition' => 'required|integer|min:1950|max:'.((int) now()->year + 1),
+            'autres_informations' => 'nullable|string|max:2000',
         ];
 
-        // Ajouter la validation de quantité uniquement en mode création
-        if (!$this->isEdit) {
+        if (! $this->isEdit) {
             $rules['quantite'] = 'required|integer|min:1|max:1000';
         }
 
         return $rules;
     }
 
-    /**
-     * Messages de validation personnalisés
-     */
     protected function messages(): array
     {
         return [
-            'idDesignation.required' => 'La désignation est obligatoire.',
-            'idDesignation.exists' => 'La désignation sélectionnée n\'existe pas.',
-            'idCategorie.required' => 'La catégorie est obligatoire.',
-            'idCategorie.exists' => 'La catégorie sélectionnée n\'existe pas.',
-            'idEtat.required' => 'L\'état est obligatoire.',
-            'idEtat.exists' => 'L\'état sélectionné n\'existe pas.',
-            'idEmplacement.required' => 'L\'emplacement est obligatoire.',
-            'idEmplacement.exists' => 'L\'emplacement sélectionné n\'existe pas.',
-            'idNatJur.required' => 'La nature juridique est obligatoire.',
-            'idNatJur.exists' => 'La nature juridique sélectionnée n\'existe pas.',
-            'idSF.required' => 'La source de financement est obligatoire.',
-            'idSF.exists' => 'La source de financement sélectionnée n\'existe pas.',
-            'DateAcquisition.integer' => 'L\'année d\'acquisition doit être un nombre.',
-            'DateAcquisition.min' => 'L\'année d\'acquisition doit être supérieure ou égale à 1900.',
-            'DateAcquisition.max' => 'L\'année d\'acquisition ne peut pas être dans le futur.',
-            'valeur_acquisition.numeric' => 'La valeur d\'acquisition doit être un nombre.',
-            'valeur_acquisition.min' => 'La valeur d\'acquisition ne peut pas être négative.',
-            'date_mise_en_service.date' => 'La date de mise en service n\'est pas valide.',
+            'site_id.required' => 'Le site est obligatoire.',
+            'site_id.exists' => 'Le site sélectionné n\'existe pas.',
+            'categorie_id.required' => 'La catégorie est obligatoire.',
+            'categorie_id.exists' => 'La catégorie sélectionnée n\'existe pas.',
+            'designation_id.required' => 'La désignation est obligatoire.',
+            'designation_id.exists' => 'La désignation sélectionnée n\'existe pas.',
+            'descriptif.max' => 'Le descriptif ne peut pas dépasser 255 caractères.',
+            'marque.max' => 'La marque ne peut pas dépasser 100 caractères.',
+            'modele.max' => 'Le modèle ne peut pas dépasser 100 caractères.',
+            'numero_chassis.max' => 'Le numéro de châssis ne peut pas dépasser 100 caractères.',
+            'numero_attm.max' => 'Le numéro ATTM ne peut pas dépasser 100 caractères.',
+            'code_immo.max' => 'Le code immo ne peut pas dépasser 100 caractères.',
+            'etat_id.required' => 'L\'état est obligatoire.',
+            'etat_id.exists' => 'L\'état sélectionné n\'existe pas.',
+            'code_dernier_inventaire.max' => 'Le code ne peut pas dépasser 40 caractères.',
+            'code_premier_inventaire.max' => 'Le code ne peut pas dépasser 40 caractères.',
             'quantite.required' => 'La quantité est obligatoire.',
             'quantite.integer' => 'La quantité doit être un nombre entier.',
             'quantite.min' => 'La quantité doit être au moins de 1.',
@@ -445,100 +228,61 @@ class FormBien extends Component
         ];
     }
 
-    /**
-     * Sauvegarde l'immobilisation (création ou édition)
-     */
     public function save()
     {
-        // Valider les données
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $validated = $this->validate();
+        $donnees = [
+            'site_id' => $validated['site_id'],
+            'categorie_id' => $validated['categorie_id'],
+            'designation_id' => $validated['designation_id'],
+            'descriptif' => trim((string) $validated['descriptif']) ?: null,
+            'marque' => trim((string) $validated['marque']) ?: null,
+            'modele' => trim((string) $validated['modele']) ?: null,
+            'numero_chassis' => trim((string) $validated['numero_chassis']) ?: null,
+            'numero_attm' => trim((string) $validated['numero_attm']) ?: null,
+            'code_immo' => trim((string) $validated['code_immo']) ?: null,
+            'etat_id' => $validated['etat_id'],
+            'code_dernier_inventaire' => trim((string) $validated['code_dernier_inventaire']) ?: null,
+            'code_premier_inventaire' => trim((string) $validated['code_premier_inventaire']) ?: null,
+            'annee_acquisition' => (int) $validated['annee_acquisition'],
+            'autres_informations' => trim((string) $validated['autres_informations']) ?: null,
+        ];
 
-        try {
-            if ($this->isEdit) {
-                // Mode édition : mettre à jour l'immobilisation existante
-                $this->bien->update([
-                    'idDesignation' => $validated['idDesignation'],
-                    'idCategorie' => $validated['idCategorie'],
-                    'idEtat' => $validated['idEtat'],
-                    'idEmplacement' => $validated['idEmplacement'],
-                    'idNatJur' => $validated['idNatJur'],
-                    'idSF' => $validated['idSF'],
-                    'DateAcquisition' => !empty($validated['DateAcquisition']) ? (int)$validated['DateAcquisition'] : null,
-                    'valeur_acquisition' => !empty($validated['valeur_acquisition']) ? $validated['valeur_acquisition'] : null,
-                    'date_mise_en_service' => !empty($validated['date_mise_en_service']) ? $validated['date_mise_en_service'] : null,
-                ]);
+        if ($this->isEdit) {
+            $this->bien->update($donnees);
+            session()->flash('success', 'Immobilisation modifiée avec succès');
 
-                $bien = $this->bien->fresh();
-                $message = 'Immobilisation modifiée avec succès';
-            } else {
-                // Mode création : créer une ou plusieurs immobilisations selon la quantité
-                $quantite = (int)($validated['quantite'] ?? 1);
-                $biensCrees = [];
-                
-                // Données communes pour toutes les immobilisations
-                $donneesCommunes = [
-                    'idDesignation' => $validated['idDesignation'],
-                    'idCategorie' => $validated['idCategorie'],
-                    'idEtat' => $validated['idEtat'],
-                    'idEmplacement' => $validated['idEmplacement'],
-                    'idNatJur' => $validated['idNatJur'],
-                    'idSF' => $validated['idSF'],
-                    'DateAcquisition' => !empty($validated['DateAcquisition']) ? (int)$validated['DateAcquisition'] : null,
-                    'valeur_acquisition' => !empty($validated['valeur_acquisition']) ? $validated['valeur_acquisition'] : null,
-                    'date_mise_en_service' => !empty($validated['date_mise_en_service']) ? $validated['date_mise_en_service'] : null,
-                ];
-                
-                // Créer les immobilisations
-                for ($i = 0; $i < $quantite; $i++) {
-                    $bien = Gesimmo::create($donneesCommunes);
-                    
-                    // Charger les relations nécessaires pour le code formaté et l'affichage
-                    $bien->load([
-                        'designation',
-                        'categorie',
-                        'etat',
-                        'natureJuridique',
-                        'sourceFinancement',
-                        'emplacement.localisation',
-                        'emplacement.affectation'
-                    ]);
-                    
-                    $biensCrees[] = $bien;
-                }
-                
-                // Utiliser le dernier bien créé pour la redirection
-                $bien = end($biensCrees);
-                
-                if ($quantite > 1) {
-                    $message = $quantite . ' immobilisations créées avec succès';
-                } else {
-                    $message = 'Immobilisation créée avec succès';
-                }
+            return redirect()->route('biens.show', $this->bien);
+        }
+
+        $quantite = (int) $validated['quantite'];
+
+        $bien = DB::transaction(function () use ($donnees, $quantite): Immobilisation {
+            $dernier = null;
+
+            for ($i = 0; $i < $quantite; $i++) {
+                $dernier = Immobilisation::create($donnees);
             }
 
-            session()->flash('success', $message);
+            return $dernier;
+        });
 
-            // Rediriger vers la page de détail
-            return redirect()->route('biens.show', $bien);
-        } catch (\Exception $e) {
-            session()->flash('error', 'Une erreur est survenue lors de la sauvegarde : ' . $e->getMessage());
-        }
+        session()->flash('success', $quantite > 1
+            ? $quantite.' immobilisations créées avec succès'
+            : 'Immobilisation créée avec succès');
+
+        return redirect()->route('biens.show', $bien);
     }
 
-    /**
-     * Annule et redirige vers la liste
-     */
     public function cancel()
     {
         return redirect()->route('biens.index');
     }
 
-    /**
-     * Rendu du composant
-     */
     public function render()
     {
         return view('livewire.biens.form-bien');
     }
 }
-

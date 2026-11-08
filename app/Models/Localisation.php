@@ -2,113 +2,39 @@
 
 namespace App\Models;
 
-use App\Services\QRCodeService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
+/**
+ * Bâtiment ou lieu géographique regroupant des sites (ex. « Siège »).
+ */
 class Localisation extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'code',
-        'designation',
-        'batiment',
-        'etage',
-        'service_rattache',
-        'responsable',
-        'qr_code_path',
-        'actif',
-    ];
+    protected $table = 'localisations';
 
-    protected $casts = [
-        'actif' => 'boolean',
-        'etage' => 'integer',
-    ];
+    public $timestamps = false;
 
-    /**
-     * RELATIONS
-     */
+    protected $fillable = ['localisation', 'code'];
 
-    /**
-     * Relation avec les biens
-     */
-    public function biens(): HasMany
+    public function sites(): HasMany
     {
-        return $this->hasMany(Bien::class);
+        return $this->hasMany(Site::class);
+    }
+
+    public function immobilisations(): HasManyThrough
+    {
+        return $this->hasManyThrough(Immobilisation::class, Site::class);
     }
 
     /**
-     * Relation avec les inventaire_localisations
+     * Libellé court : le code s'il existe, sinon le nom.
      */
-    public function inventaireLocalisations(): HasMany
+    public function getLibelleCourtAttribute(): string
     {
-        return $this->hasMany(InventaireLocalisation::class);
-    }
-
-    /**
-     * SCOPES
-     */
-
-    /**
-     * Scope pour filtrer les localisations actives
-     */
-    public function scopeActives(Builder $query): Builder
-    {
-        return $query->where('actif', true);
-    }
-
-    /**
-     * Scope pour filtrer par bâtiment
-     */
-    public function scopeByBatiment(Builder $query, string $batiment): Builder
-    {
-        return $query->where('batiment', $batiment);
-    }
-
-    /**
-     * Scope pour filtrer par service
-     */
-    public function scopeByService(Builder $query, string $service): Builder
-    {
-        return $query->where('service_rattache', $service);
-    }
-
-    /**
-     * ACCESSORS
-     */
-
-    /**
-     * Retourne le nom complet : "Code - Désignation"
-     */
-    public function getFullNameAttribute(): string
-    {
-        return "{$this->code} - {$this->designation}";
-    }
-
-    /**
-     * Retourne le nombre de biens dans cette localisation
-     */
-    public function getNombreBiensAttribute(): int
-    {
-        return $this->biens()->count();
-    }
-
-    /**
-     * METHODS
-     */
-
-    /**
-     * Génère et sauvegarde le QR code pour cette localisation
-     * 
-     * @return string Le chemin relatif du QR code généré
-     */
-    public function generateQRCode(): string
-    {
-        $qrCodeService = app(\App\Services\QRCodeService::class);
-        return $qrCodeService->generateForLocalisation($this);
+        return $this->code ?: $this->localisation;
     }
 }
-

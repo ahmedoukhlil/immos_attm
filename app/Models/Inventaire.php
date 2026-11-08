@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Exceptions\InventaireWorkflowException;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
-use Carbon\Carbon;
 
 class Inventaire extends Model
 {
@@ -21,13 +22,30 @@ class Inventaire extends Model
         'created_by',
         'closed_by',
         'observation',
+        'referentiel_frozen_at',
+        'started_at',
+        'finished_at',
+        'closed_at',
     ];
 
     protected $casts = [
         'annee' => 'integer',
         'date_debut' => 'date',
         'date_fin' => 'date',
+        'referentiel_frozen_at' => 'datetime',
+        'started_at' => 'datetime',
+        'finished_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Inventaire $inventaire): void {
+            if ($inventaire->statut !== 'en_preparation' || $inventaire->inventaireScans()->exists()) {
+                throw new InventaireWorkflowException('Seul un inventaire en préparation et sans scan peut être supprimé.');
+            }
+        });
+    }
 
     /**
      * RELATIONS
@@ -66,6 +84,19 @@ class Inventaire extends Model
     }
 
     /**
+     * Référentiel figé des biens attendus au démarrage de l'inventaire.
+     */
+    public function biensAttendus(): HasMany
+    {
+        return $this->hasMany(InventaireImmobilisationAttendue::class);
+    }
+
+    public function hasFrozenReference(): bool
+    {
+        return $this->referentiel_frozen_at !== null;
+    }
+
+    /**
      * SCOPES
      */
 
@@ -93,6 +124,24 @@ class Inventaire extends Model
         return $query->where('annee', $annee);
     }
 
+    public function scopeAccessibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        return $query->whereHas(
+            'inventaireLocalisations',
+            fn (Builder $localisations) => $localisations->byAgent($user->idUser),
+        );
+    }
+
+    public function isAccessibleTo(User $user): bool
+    {
+        return $user->isAdmin()
+            || $this->inventaireLocalisations()->byAgent($user->idUser)->exists();
+    }
+
     /**
      * ACCESSORS
      */
@@ -103,7 +152,7 @@ class Inventaire extends Model
     public function getProgressionAttribute(): float
     {
         $totalLocalisations = $this->inventaireLocalisations()->count();
-        
+
         if ($totalLocalisations === 0) {
             return 0;
         }
@@ -121,7 +170,7 @@ class Inventaire extends Model
     public function getTauxConformiteAttribute(): float
     {
         $totalScans = $this->inventaireScans()->count();
-        
+
         if ($totalScans === 0) {
             return 0;
         }
@@ -138,13 +187,14 @@ class Inventaire extends Model
      */
     public function getDureeAttribute(): ?int
     {
-        if (!$this->date_debut) {
+        $dateDebut = $this->started_at ?? $this->date_debut;
+        if (! $dateDebut) {
             return null;
         }
 
-        $dateFin = $this->date_fin ?? now();
-        
-        return Carbon::parse($this->date_debut)->diffInDays($dateFin);
+        $dateFin = $this->finished_at ?? $this->date_fin ?? now();
+
+        return (int) Carbon::parse($dateDebut)->diffInDays($dateFin);
     }
 
     /**
@@ -156,21 +206,33 @@ class Inventaire extends Model
      */
     public function demarrer(): bool
     {
+        if ($this->statut !== 'en_preparation') {
+            throw new InventaireWorkflowException('Seul un inventaire en préparation peut être démarré.');
+        }
+
         return $this->update([
             'statut' => 'en_cours',
-            'date_debut' => now(),
+            'started_at' => now(),
         ]);
     }
 
     /**
-     * Clôture l'inventaire (passe le statut à 'cloture' et définit la date de fin)
+     * Clôture l'inventaire sans écraser la date de fin opérationnelle.
      */
     public function cloturer(?int $closedBy = null): bool
     {
+        if ($this->statut !== 'termine') {
+            throw new InventaireWorkflowException('Seul un inventaire terminé peut être clôturé.');
+        }
+
+        if (! $closedBy) {
+            throw new InventaireWorkflowException('L’administrateur qui clôture l’inventaire doit être précisé.');
+        }
+
         return $this->update([
             'statut' => 'cloture',
-            'date_fin' => now(),
-            'closed_by' => $closedBy ?? auth()->id(),
+            'closed_at' => now(),
+            'closed_by' => $closedBy,
         ]);
     }
 
@@ -179,20 +241,34 @@ class Inventaire extends Model
      */
     public function getStatistiques(): array
     {
-        $totalLocalisations = $this->inventaireLocalisations()->count();
-        $localisationsTerminees = $this->inventaireLocalisations()
-            ->where('statut', 'termine')
-            ->count();
+        $localisationsParStatut = $this->inventaireLocalisations()
+            ->selectRaw('statut, COUNT(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut');
 
-        $totalScans = $this->inventaireScans()->count();
-        $scansPresents = $this->inventaireScans()->where('statut_scan', 'present')->count();
-        $scansDeplaces = $this->inventaireScans()->where('statut_scan', 'deplace')->count();
-        $scansAbsents = $this->inventaireScans()->where('statut_scan', 'absent')->count();
-        $scansDeteriores = $this->inventaireScans()->where('statut_scan', 'deteriore')->count();
+        $scans = $this->inventaireScans()
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN statut_scan = 'present' THEN 1 ELSE 0 END) as presents")
+            ->selectRaw("SUM(CASE WHEN statut_scan = 'deplace' THEN 1 ELSE 0 END) as deplaces")
+            ->selectRaw("SUM(CASE WHEN statut_scan = 'absent' THEN 1 ELSE 0 END) as absents")
+            ->selectRaw("SUM(CASE WHEN etat_constate = 'defectueux' AND statut_scan != 'absent' THEN 1 ELSE 0 END) as defectueux")
+            ->first();
+
+        $totalLocalisations = (int) $localisationsParStatut->sum();
+        $localisationsTerminees = (int) ($localisationsParStatut['termine'] ?? 0);
+        $totalScans = (int) ($scans?->total ?? 0);
+        $scansPresents = (int) ($scans?->presents ?? 0);
+        $scansDeplaces = (int) ($scans?->deplaces ?? 0);
+        $scansAbsents = (int) ($scans?->absents ?? 0);
+        $scansDeteriores = (int) ($scans?->defectueux ?? 0);
 
         return [
-            'progression' => $this->progression,
-            'taux_conformite' => $this->taux_conformite,
+            'progression' => $totalLocalisations > 0
+                ? round(($localisationsTerminees / $totalLocalisations) * 100, 2)
+                : 0,
+            'taux_conformite' => $totalScans > 0
+                ? round(($scansPresents / $totalScans) * 100, 2)
+                : 0,
             'duree' => $this->duree,
             'total_localisations' => $totalLocalisations,
             'localisations_terminees' => $localisationsTerminees,
@@ -204,4 +280,3 @@ class Inventaire extends Model
         ];
     }
 }
-

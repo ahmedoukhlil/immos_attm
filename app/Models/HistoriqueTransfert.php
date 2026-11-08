@@ -11,17 +11,13 @@ class HistoriqueTransfert extends Model
     use HasFactory;
 
     protected $table = 'historique_transferts';
-    protected $primaryKey = 'id';
-    public $timestamps = true;
 
     protected $fillable = [
-        'NumOrdre',
-        'ancien_idEmplacement',
-        'nouveau_idEmplacement',
-        'ancien_emplacement_libelle',
-        'nouveau_emplacement_libelle',
-        'ancien_affectation_libelle',
-        'nouveau_affectation_libelle',
+        'immobilisation_id',
+        'ancien_site_id',
+        'nouveau_site_id',
+        'ancien_site_libelle',
+        'nouveau_site_libelle',
         'ancien_localisation_libelle',
         'nouveau_localisation_libelle',
         'transfert_par',
@@ -34,32 +30,23 @@ class HistoriqueTransfert extends Model
         'date_transfert' => 'datetime',
     ];
 
-    /**
-     * Relation avec l'immobilisation
-     */
     public function immobilisation(): BelongsTo
     {
-        return $this->belongsTo(Gesimmo::class, 'NumOrdre', 'NumOrdre');
+        return $this->belongsTo(Immobilisation::class)->withTrashed()->withoutGlobalScope(Immobilisation::PORTEE_EN_SERVICE);
     }
 
-    /**
-     * Relation avec l'ancien emplacement
-     */
-    public function ancienEmplacement(): BelongsTo
+    public function ancienSite(): BelongsTo
     {
-        return $this->belongsTo(Emplacement::class, 'ancien_idEmplacement', 'idEmplacement');
+        return $this->belongsTo(Site::class, 'ancien_site_id');
     }
 
-    /**
-     * Relation avec le nouveau emplacement
-     */
-    public function nouveauEmplacement(): BelongsTo
+    public function nouveauSite(): BelongsTo
     {
-        return $this->belongsTo(Emplacement::class, 'nouveau_idEmplacement', 'idEmplacement');
+        return $this->belongsTo(Site::class, 'nouveau_site_id');
     }
 
     /**
-     * Relation avec l'utilisateur qui a effectué le transfert
+     * Utilisateur qui a effectué le transfert
      */
     public function utilisateur(): BelongsTo
     {

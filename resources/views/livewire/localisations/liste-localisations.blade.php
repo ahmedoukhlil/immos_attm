@@ -9,7 +9,7 @@
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Gestion des Localisations</h1>
                 <p class="mt-1 text-sm text-gray-500">
-                    {{ $totalLocalisations }} localisation(s) | {{ $totalEmplacements }} emplacement(s)
+                    {{ $totalLocalisations }} localisation(s) | {{ $totalSites }} site(s)
                 </p>
             </div>
             
@@ -30,7 +30,7 @@
             <div class="flex flex-col sm:flex-row gap-4 items-end">
                 {{-- Recherche globale --}}
                 <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <label for="recherche-localisations" class="block text-sm font-medium text-gray-700 mb-1">
                         Recherche
                     </label>
                     <div class="relative">
@@ -40,6 +40,7 @@
                             </svg>
                         </div>
                         <input 
+                            id="recherche-localisations"
                             type="text"
                             wire:model.live.debounce.300ms="search"
                             placeholder="Code, localisation..."
@@ -75,20 +76,20 @@
                                     class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                     @if($this->allSelected) checked @endif>
                             </th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" wire:click="sortBy('CodeLocalisation')">
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" wire:click="sortBy('code')">
                                 <div class="flex items-center">
                                     Code
-                                    @if($sortField === 'CodeLocalisation')
+                                    @if($sortField === 'code')
                                         <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}" />
                                         </svg>
                                     @endif
                                 </div>
                             </th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" wire:click="sortBy('Localisation')">
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" wire:click="sortBy('localisation')">
                                 <div class="flex items-center">
                                     Localisation
-                                    @if($sortField === 'Localisation')
+                                    @if($sortField === 'localisation')
                                         <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $sortDirection === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7' }}" />
                                         </svg>
@@ -96,7 +97,7 @@
                                 </div>
                             </th>
                             <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Emplacements
+                                Sites
                             </th>
                             <th scope="col" class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Actions
@@ -110,26 +111,26 @@
                                     <input 
                                         type="checkbox"
                                         wire:model="selectedLocalisations"
-                                        value="{{ $localisation->idLocalisation }}"
+                                        value="{{ $localisation->id }}"
                                         class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">{{ $localisation->CodeLocalisation ?? '-' }}</div>
+                                    <div class="text-sm font-medium text-gray-900">{{ $localisation->code ?? '-' }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="text-sm text-gray-900">{{ $localisation->Localisation }}</div>
+                                    <div class="text-sm text-gray-900">{{ $localisation->localisation }}</div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                        {{ $localisation->emplacements_count }}
+                                        {{ $localisation->sites_count }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex items-center justify-end gap-2">
                                         <a 
-                                            href="{{ route('emplacements.index') }}?localisation={{ $localisation->idLocalisation }}"
+                                            href="{{ route('sites.index') }}?localisation={{ $localisation->id }}"
                                             class="text-indigo-600 hover:text-indigo-900 transition-colors"
-                                            title="Voir les emplacements">
+                                            title="Voir les sites">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -138,7 +139,7 @@
 
                                         @if($isAdmin)
                                             <a 
-                                                href="{{ route('localisations.edit', $localisation->idLocalisation) }}"
+                                                href="{{ route('localisations.edit', $localisation->id) }}"
                                                 class="text-yellow-600 hover:text-yellow-900 transition-colors"
                                                 title="Modifier">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +148,7 @@
                                             </a>
 
                                             <button 
-                                                wire:click="deleteLocalisation({{ $localisation->idLocalisation }})"
+                                                wire:click="deleteLocalisation({{ $localisation->id }})"
                                                 wire:confirm="Êtes-vous sûr de vouloir supprimer cette localisation ?"
                                                 class="text-red-600 hover:text-red-900 transition-colors"
                                                 title="Supprimer">

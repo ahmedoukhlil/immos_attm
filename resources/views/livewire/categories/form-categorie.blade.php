@@ -8,7 +8,7 @@
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
                         </svg>
-                        Dashboard
+                        Tableau de bord
                     </a>
                 </li>
                 <li>
@@ -55,12 +55,12 @@
                     </label>
                     <input
                         type="text"
-                        wire:model="CodeCategorie"
+                        wire:model="code"
                         maxlength="10"
                         placeholder="Ex: MINF, MOBI, MTRP"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono uppercase @error('CodeCategorie') border-red-300 @enderror"
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono uppercase @error('code') border-red-300 @enderror"
                         wire:loading.attr="disabled">
-                    @error('CodeCategorie')
+                    @error('code')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -72,96 +72,36 @@
                     </label>
                     <input
                         type="text"
-                        wire:model="Categorie"
+                        wire:model="categorie"
                         placeholder="Ex: Matériel Informatique et Logiciels"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('Categorie') border-red-300 @enderror"
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('categorie') border-red-300 @enderror"
                         wire:loading.attr="disabled">
-                    @error('Categorie')
+                    @error('categorie')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
 
-                {{-- Durée --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Durée d'amortissement <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <input
-                            type="number"
-                            wire:model.live="duree_amortissement"
-                            min="1"
-                            max="50"
-                            placeholder="Ex: 4"
-                            class="block w-full pr-12 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('duree_amortissement') border-red-300 @enderror"
-                            wire:loading.attr="disabled">
-                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">ans</span>
-                        </div>
-                    </div>
-                    @error('duree_amortissement')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                    <p class="mt-1 text-xs text-gray-500">La saisie de la durée calcule le taux automatiquement.</p>
-                </div>
-
-                {{-- Taux --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Taux d'amortissement <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <input
-                            type="number"
-                            wire:model="taux_amortissement"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            placeholder="Ex: 25"
-                            class="block w-full pr-8 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('taux_amortissement') border-red-300 @enderror"
-                            wire:loading.attr="disabled">
-                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <span class="text-gray-500 sm:text-sm">%</span>
-                        </div>
-                    </div>
-                    @error('taux_amortissement')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Type CGI --}}
+                {{-- Imputation comptable --}}
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Type CGI
-                        <span class="text-xs text-gray-400 font-normal ml-1">(libellé officiel dans le CGI)</span>
+                        Imputation comptable
+                        <span class="text-xs text-gray-400 font-normal ml-1">(compte du plan comptable, 8 chiffres)</span>
                     </label>
                     <input
                         type="text"
-                        wire:model="type_cgi"
-                        placeholder="Ex: Matériel informatique"
-                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('type_cgi') border-red-300 @enderror"
+                        inputmode="numeric"
+                        maxlength="8"
+                        wire:model="imputation_comptable"
+                        placeholder="Ex: 21800000"
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono @error('imputation_comptable') border-red-300 @enderror"
                         wire:loading.attr="disabled">
-                    @error('type_cgi')
+                    @error('imputation_comptable')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
+                    <p class="mt-1 text-xs text-gray-500">
+                        Utilisée par l'import Excel pour rattacher une immobilisation à sa catégorie.
+                    </p>
                 </div>
-
-                {{-- Récapitulatif --}}
-                @if($duree_amortissement && $taux_amortissement)
-                <div class="md:col-span-2">
-                    <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-4 flex items-center gap-4">
-                        <svg class="w-6 h-6 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div class="text-sm text-indigo-800">
-                            Un bien de cette catégorie s'amortit sur
-                            <strong>{{ $duree_amortissement }} ans</strong>
-                            au taux de <strong>{{ $taux_amortissement }}%</strong> par an.
-                            Seuil d'amortissabilité : <strong>50 000 MRU</strong> (CGI Mauritanie).
-                        </div>
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
 

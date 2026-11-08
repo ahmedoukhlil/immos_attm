@@ -146,7 +146,7 @@
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                             <p class="mt-1 text-xs text-gray-500">
-                                <strong>Agent :</strong> Peut gérer les localisations, biens et inventaires.<br>
+                                <strong>Agent :</strong> Réalise les comptages physiques qui lui sont assignés dans la PWA.<br>
                                 <strong>Administrateur :</strong> Accès complet, y compris la gestion des utilisateurs.
                             </p>
                         </div>

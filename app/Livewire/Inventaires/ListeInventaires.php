@@ -2,28 +2,39 @@
 
 namespace App\Livewire\Inventaires;
 
+use App\Exceptions\InventaireWorkflowException;
+use App\Livewire\Traits\WithSafeTableControls;
 use App\Models\Inventaire;
 use App\Models\InventaireLocalisation;
 use App\Models\User;
+use App\Services\InventaireService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ListeInventaires extends Component
 {
-    use WithPagination;
+    use WithPagination, WithSafeTableControls;
+
+    private const SORT_FIELDS = ['annee', 'statut', 'date_debut', 'date_fin', 'created_at'];
 
     /**
      * Propriétés publiques pour les filtres et le tri
      */
     public $filterStatut = 'all';
+
     public $filterAnnee = '';
+
     public $sortField = 'annee';
+
     public $sortDirection = 'desc';
+
     public $perPage = 10;
 
     public $showAgentsModal = false;
+
     public $modalInventaireId = null;
+
     public $modalInventaireAnnee = null;
 
     /**
@@ -41,6 +52,7 @@ class ListeInventaires extends Component
     public function getAnneesProperty()
     {
         return Inventaire::query()
+            ->accessibleTo(Auth::user())
             ->distinct()
             ->orderBy('annee', 'desc')
             ->pluck('annee')
@@ -52,7 +64,9 @@ class ListeInventaires extends Component
      */
     public function getInventaireEnCoursProperty()
     {
-        return Inventaire::whereIn('statut', ['en_cours', 'en_preparation'])
+        return Inventaire::query()
+            ->accessibleTo(Auth::user())
+            ->whereIn('statut', ['en_cours', 'en_preparation'])
             ->with(['creator'])
             ->withCount([
                 'inventaireLocalisations',
@@ -79,10 +93,10 @@ class ListeInventaires extends Component
     public function getCompteursProperty(): array
     {
         return [
-            'total' => Inventaire::count(),
-            'en_cours' => Inventaire::whereIn('statut', ['en_cours', 'en_preparation'])->count(),
-            'termines' => Inventaire::where('statut', 'termine')->count(),
-            'clotures' => Inventaire::where('statut', 'cloture')->count(),
+            'total' => Inventaire::accessibleTo(Auth::user())->count(),
+            'en_cours' => Inventaire::accessibleTo(Auth::user())->whereIn('statut', ['en_cours', 'en_preparation'])->count(),
+            'termines' => Inventaire::accessibleTo(Auth::user())->where('statut', 'termine')->count(),
+            'clotures' => Inventaire::accessibleTo(Auth::user())->where('statut', 'cloture')->count(),
         ];
     }
 
@@ -91,17 +105,7 @@ class ListeInventaires extends Component
      */
     public function sortBy($field): void
     {
-        if ($this->sortField === $field) {
-            // Inverser la direction si on clique sur la même colonne
-            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            // Nouvelle colonne, tri ascendant par défaut
-            $this->sortField = $field;
-            $this->sortDirection = 'asc';
-        }
-
-        // Réinitialiser la pagination lors du changement de tri
-        $this->resetPage();
+        $this->changeSort((string) $field, self::SORT_FIELDS);
     }
 
     /**
@@ -120,28 +124,31 @@ class ListeInventaires extends Component
     public function archiverInventaire($inventaireId): void
     {
         // Vérifier que l'utilisateur est admin
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour clôturer un inventaire.');
+
             return;
         }
 
         $inventaire = Inventaire::find($inventaireId);
 
-        if (!$inventaire) {
+        if (! $inventaire) {
             session()->flash('error', 'Inventaire introuvable.');
+
             return;
         }
 
         if ($inventaire->statut !== 'termine') {
             session()->flash('error', 'Seuls les inventaires terminés peuvent être clôturés.');
+
             return;
         }
 
         try {
-            $inventaire->cloturer();
+            app(InventaireService::class)->cloturerInventaire($inventaire, Auth::user());
             session()->flash('success', "L'inventaire {$inventaire->annee} a été clôturé avec succès.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la clôture: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la clôture.'));
         }
     }
 
@@ -151,24 +158,31 @@ class ListeInventaires extends Component
     public function supprimerInventaire($inventaireId): void
     {
         // Vérifier que l'utilisateur est admin
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             session()->flash('error', 'Vous n\'avez pas les permissions nécessaires pour supprimer un inventaire.');
+
             return;
         }
 
         $inventaire = Inventaire::find($inventaireId);
 
-        if (!$inventaire) {
+        if (! $inventaire) {
             session()->flash('error', 'Inventaire introuvable.');
+
+            return;
+        }
+
+        if ($inventaire->statut !== 'en_preparation' || $inventaire->inventaireScans()->exists()) {
+            session()->flash('error', 'Seul un inventaire en préparation et sans scan peut être supprimé.');
+
             return;
         }
 
         try {
-            // Cascade delete : les scans et localisations seront supprimés automatiquement
-            $inventaire->delete();
+            app(InventaireService::class)->supprimerInventaire($inventaire, Auth::user());
             session()->flash('success', "L'inventaire {$inventaire->annee} a été supprimé avec succès.");
         } catch (\Exception $e) {
-            session()->flash('error', 'Erreur lors de la suppression: ' . $e->getMessage());
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Erreur lors de la suppression.'));
         }
     }
 
@@ -177,13 +191,14 @@ class ListeInventaires extends Component
      */
     public function ouvrirModalAgents($inventaireId): void
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             return;
         }
 
         $inventaire = Inventaire::find($inventaireId);
-        if (!$inventaire || !in_array($inventaire->statut, ['en_cours', 'en_preparation'])) {
+        if (! $inventaire || ! in_array($inventaire->statut, ['en_cours', 'en_preparation'])) {
             session()->flash('error', 'Inventaire introuvable ou non modifiable.');
+
             return;
         }
 
@@ -207,7 +222,7 @@ class ListeInventaires extends Component
      */
     public function getModalLocalisationsProperty()
     {
-        if (!$this->modalInventaireId) {
+        if (! Auth::user()->isAdmin() || ! $this->modalInventaireId) {
             return collect();
         }
 
@@ -222,6 +237,10 @@ class ListeInventaires extends Component
      */
     public function getAllAgentsProperty()
     {
+        if (! Auth::user()->isAdmin()) {
+            return collect();
+        }
+
         return User::whereIn('role', ['agent', 'admin'])
             ->orderBy('users')
             ->get();
@@ -232,28 +251,24 @@ class ListeInventaires extends Component
      */
     public function toggleAgentLoc($invLocId, $userId): void
     {
-        if (!Auth::user()->isAdmin()) {
+        if (! Auth::user()->isAdmin()) {
             return;
         }
 
         $invLoc = InventaireLocalisation::find($invLocId);
-        if (!$invLoc || $invLoc->inventaire_id !== $this->modalInventaireId) {
+        if (! $invLoc || $invLoc->inventaire_id !== $this->modalInventaireId) {
             return;
         }
 
-        $userId = (int) $userId;
-
-        if ($invLoc->agents->contains('idUser', $userId)) {
-            $invLoc->agents()->detach($userId);
-            if ($invLoc->user_id === $userId) {
-                $remaining = $invLoc->agents()->first();
-                $invLoc->update(['user_id' => $remaining?->idUser]);
-            }
-        } else {
-            $invLoc->agents()->attach($userId);
-            if (!$invLoc->user_id) {
-                $invLoc->update(['user_id' => $userId]);
-            }
+        try {
+            $agent = User::findOrFail((int) $userId);
+            app(InventaireService::class)->basculerAgentLocalisation(
+                $invLoc,
+                $agent,
+                Auth::user(),
+            );
+        } catch (\Exception $e) {
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Impossible de modifier cette assignation.'));
         }
     }
 
@@ -262,21 +277,22 @@ class ListeInventaires extends Component
      */
     public function ajouterAgentPartout($userId): void
     {
-        if (!Auth::user()->isAdmin() || !$this->modalInventaireId || !$userId) {
+        if (! Auth::user()->isAdmin() || ! $this->modalInventaireId || ! $userId) {
             return;
         }
 
-        $userId = (int) $userId;
-        $invLocs = InventaireLocalisation::where('inventaire_id', $this->modalInventaireId)->get();
-
-        foreach ($invLocs as $invLoc) {
-            $invLoc->agents()->syncWithoutDetaching([$userId]);
-            if (!$invLoc->user_id) {
-                $invLoc->update(['user_id' => $userId]);
-            }
+        try {
+            $inventaire = Inventaire::findOrFail($this->modalInventaireId);
+            $agent = User::findOrFail((int) $userId);
+            app(InventaireService::class)->assignerAgentAToutesLesLocalisations(
+                $inventaire,
+                $agent,
+                Auth::user(),
+            );
+            session()->flash('success', 'Agent ajouté à toutes les localisations.');
+        } catch (\Exception $e) {
+            session()->flash('error', InventaireWorkflowException::messagePour($e, 'Impossible d’ajouter cet agent aux localisations.'));
         }
-
-        session()->flash('success', 'Agent ajouté à toutes les localisations.');
     }
 
     /**
@@ -284,7 +300,9 @@ class ListeInventaires extends Component
      */
     protected function getInventairesQuery()
     {
-        $query = Inventaire::with(['creator'])
+        $query = Inventaire::query()
+            ->accessibleTo(Auth::user())
+            ->with(['creator'])
             ->withCount([
                 'inventaireLocalisations',
                 'inventaireLocalisations as localisations_terminees_count' => function ($q) {
@@ -310,12 +328,15 @@ class ListeInventaires extends Component
         }
 
         // Filtre par année
-        if (!empty($this->filterAnnee)) {
+        if (! empty($this->filterAnnee)) {
             $query->where('annee', $this->filterAnnee);
         }
 
         // Tri
-        $query->orderBy($this->sortField, $this->sortDirection);
+        $query->orderBy(
+            $this->resolveSortField(self::SORT_FIELDS, 'annee'),
+            $this->resolveSortDirection(),
+        );
 
         return $query;
     }
@@ -325,11 +346,15 @@ class ListeInventaires extends Component
      */
     public function render()
     {
-        $inventaires = $this->getInventairesQuery()->paginate($this->perPage);
+        $inventaires = $this->getInventairesQuery()->paginate($this->resolvePageSize());
 
         return view('livewire.inventaires.liste-inventaires', [
             'inventaires' => $inventaires,
         ]);
     }
-}
 
+    protected function defaultPageSize(): int
+    {
+        return 10;
+    }
+}

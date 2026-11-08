@@ -8,7 +8,7 @@
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
                         </svg>
-                        Dashboard
+                        Tableau de bord
                     </a>
                 </li>
                 <li>
@@ -33,7 +33,7 @@
         </nav>
 
         <h1 class="text-3xl font-bold text-gray-900">
-            {{ $this->isEdit && $this->localisation ? 'Modifier ' . $this->localisation->Localisation : 'Ajouter une localisation' }}
+            {{ $this->isEdit ? 'Modifier ' . $localisationModel->localisation : 'Ajouter une localisation' }}
         </h1>
         <p class="mt-1 text-sm text-gray-500">
             {{ $this->isEdit ? 'Modifiez les informations de la localisation' : 'Remplissez le formulaire pour ajouter une nouvelle localisation' }}
@@ -55,7 +55,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {{-- Localisation --}}
                     <div>
-                        <label for="Localisation" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="localisation" class="block text-sm font-medium text-gray-700 mb-1">
                             Localisation <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
@@ -66,20 +66,20 @@
                             </div>
                             <input 
                                 type="text"
-                                id="Localisation"
-                                wire:model="Localisation"
+                                id="localisation"
+                                wire:model="localisation"
                                 placeholder="Ex: Bâtiment A, Annexe"
-                                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('Localisation') border-red-300 @enderror"
+                                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('localisation') border-red-300 @enderror"
                                 wire:loading.attr="disabled">
                         </div>
-                        @error('Localisation')
+                        @error('localisation')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                     </div>
 
                     {{-- Code Localisation --}}
                     <div>
-                        <label for="CodeLocalisation" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="code" class="block text-sm font-medium text-gray-700 mb-1">
                             Code de localisation
                         </label>
                         <div class="flex gap-2">
@@ -91,10 +91,10 @@
                                 </div>
                                 <input 
                                     type="text"
-                                    id="CodeLocalisation"
-                                    wire:model="CodeLocalisation"
+                                    id="code"
+                                    wire:model="code"
                                     placeholder="Ex: BAT-A, LOC-001"
-                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('CodeLocalisation') border-red-300 @enderror"
+                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('code') border-red-300 @enderror"
                                     wire:loading.attr="disabled">
                             </div>
                             <button 
@@ -105,7 +105,7 @@
                                 Auto
                             </button>
                         </div>
-                        @error('CodeLocalisation')
+                        @error('code')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
                         <p class="mt-1 text-xs text-gray-500">
