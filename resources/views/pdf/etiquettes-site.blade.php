@@ -47,10 +47,7 @@
         .champ-label { margin-top: 1.4mm; font-size: 4pt; font-weight: bold; text-transform: uppercase; letter-spacing: .35pt; opacity: .48; }
         .site { margin-top: .25mm; font-size: 5.6pt; line-height: 1.05; }
         .code {
-            position: absolute;
-            right: 2.7mm;
-            left: {{ $configuration['qr_size'] + 5.2 }}mm;
-            height: 3mm;
+            margin-top: 1mm;
             overflow: hidden;
             font-family: DejaVu Sans, sans-serif;
             font-size: 5.2pt;
@@ -67,10 +64,10 @@
         .composant { margin-top: .45mm; font-size: 4.2pt; }
         .champ-label { margin-top: .8mm; font-size: 3pt; letter-spacing: .1pt; }
         .site { margin-top: .15mm; font-size: 4.1pt; }
-        .code { right: 1.3mm; left: {{ $configuration['qr_size'] + 3 }}mm; font-size: 4.4pt; }
+        .code { margin-top: .7mm; font-size: 4.4pt; }
         @endif
         @if($configuration['narrow_layout'])
-        .code { left: 1.3mm; text-align: center; }
+        .code { font-size: 4pt; letter-spacing: 0; }
         @endif
         @if($configuration['short_layout'])
         .qr { left: 1.2mm; padding: .2mm; }
@@ -78,7 +75,7 @@
         .composant { margin-top: .35mm; font-size: 4pt; }
         .champ-label { margin-top: .55mm; font-size: 2.8pt; }
         .site { margin-top: .1mm; font-size: 3.8pt; }
-        .code { height: 2.6mm; }
+        .code { margin-top: .55mm; }
         @endif
     </style>
 </head>
@@ -102,19 +99,17 @@
                 $retraitDroite = max(0, $gauche + $configuration['label_width'] - ($configuration['page_width'] - $zone));
                 $retraitBas = max(0, $haut + $configuration['label_height'] - ($configuration['page_height'] - $zone));
                 $hauteurContenu = $configuration['label_height'] - $retraitHaut - $retraitBas;
-                // Le QR est centré verticalement ; le code reste toujours dans une ligne
-                // dédiée au bas de l'étiquette afin de ne jamais recouvrir le site.
+                // Le QR est centré verticalement ; les informations restent dans un
+                // même flux afin que le code suive immédiatement le nom du site.
                 $margeQr = $configuration['narrow_layout']
                     ? 1.2
                     : max(.8, ($hauteurContenu - $configuration['qr_size']) / 2);
-                $basCode = 1.1;
-                $reserveCode = $configuration['show_code'] ? 4.5 : $margeQr;
             @endphp
             @if($etiquette)
             <article class="etiquette" style="left: {{ $gauche }}mm; top: {{ $haut }}mm;">
                 <div class="contenu" style="left: {{ $retraitGauche }}mm; top: {{ $retraitHaut }}mm; width: {{ $configuration['label_width'] - $retraitGauche - $retraitDroite }}mm; height: {{ $hauteurContenu }}mm;">
                     <div class="qr" style="top: {{ $margeQr }}mm;"><img src="data:image/svg+xml;base64,{{ $etiquette['qr_base64'] }}" alt="QR code"></div>
-                    <div class="infos" style="top: {{ $margeQr + .3 }}mm; bottom: {{ $reserveCode }}mm;">
+                    <div class="infos" style="top: {{ $margeQr + .3 }}mm; bottom: {{ $margeQr }}mm;">
                         @if($configuration['show_designation'])
                             <div class="designation">{{ $etiquette['bien']->libelle_article ?? 'Immobilisation' }}</div>
                         @endif
@@ -125,11 +120,11 @@
                             <div class="champ-label">Site</div>
                             <div class="site">{{ $site->site }}</div>
                         @endif
+                        @if($configuration['show_code'])
+                            {{-- Code d'inventaire en clair, juste sous le site. --}}
+                            <div class="code">{{ $etiquette['code_affiche'] ?? $etiquette['code'] }}</div>
+                        @endif
                     </div>
-                    @if($configuration['show_code'])
-                        {{-- Code d'inventaire en clair (le QR, lui, contient le code de scan GS…). --}}
-                        <div class="code" style="bottom: {{ $basCode }}mm;">{{ $etiquette['code_affiche'] ?? $etiquette['code'] }}</div>
-                    @endif
                 </div>
             </article>
             @endif
