@@ -55,6 +55,7 @@
             font-family: DejaVu Sans, sans-serif;
             font-size: 5.2pt;
             font-weight: bold;
+            line-height: 1.1;
             letter-spacing: .1pt;
             white-space: nowrap;
             text-align: left;
@@ -101,17 +102,19 @@
                 $retraitDroite = max(0, $gauche + $configuration['label_width'] - ($configuration['page_width'] - $zone));
                 $retraitBas = max(0, $haut + $configuration['label_height'] - ($configuration['page_height'] - $zone));
                 $hauteurContenu = $configuration['label_height'] - $retraitHaut - $retraitBas;
-                // Le QR est centré verticalement ; sur une étiquette étroite, il monte pour laisser le code dessous.
+                // Le QR est centré verticalement ; le code reste toujours dans une ligne
+                // dédiée au bas de l'étiquette afin de ne jamais recouvrir le site.
                 $margeQr = $configuration['narrow_layout']
                     ? 1.2
                     : max(.8, ($hauteurContenu - $configuration['qr_size']) / 2);
-                $basCode = $configuration['narrow_layout'] ? 1.1 : $margeQr + .2;
+                $basCode = 1.1;
+                $reserveCode = $configuration['show_code'] ? 4.5 : $margeQr;
             @endphp
             @if($etiquette)
             <article class="etiquette" style="left: {{ $gauche }}mm; top: {{ $haut }}mm;">
                 <div class="contenu" style="left: {{ $retraitGauche }}mm; top: {{ $retraitHaut }}mm; width: {{ $configuration['label_width'] - $retraitGauche - $retraitDroite }}mm; height: {{ $hauteurContenu }}mm;">
                     <div class="qr" style="top: {{ $margeQr }}mm;"><img src="data:image/svg+xml;base64,{{ $etiquette['qr_base64'] }}" alt="QR code"></div>
-                    <div class="infos" style="top: {{ $margeQr + .3 }}mm; bottom: {{ $configuration['show_code'] ? $basCode + 3.2 : $margeQr }}mm;">
+                    <div class="infos" style="top: {{ $margeQr + .3 }}mm; bottom: {{ $reserveCode }}mm;">
                         @if($configuration['show_designation'])
                             <div class="designation">{{ $etiquette['bien']->libelle_article ?? 'Immobilisation' }}</div>
                         @endif
