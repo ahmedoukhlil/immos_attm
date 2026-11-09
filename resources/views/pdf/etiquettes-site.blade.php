@@ -109,7 +109,7 @@
             <article class="etiquette" style="left: {{ $gauche }}mm; top: {{ $haut }}mm;">
                 <div class="contenu" style="left: {{ $retraitGauche }}mm; top: {{ $retraitHaut }}mm; width: {{ $configuration['label_width'] - $retraitGauche - $retraitDroite }}mm; height: {{ $hauteurContenu }}mm;">
                     <div class="qr" style="top: {{ $margeQr }}mm;"><img src="data:image/svg+xml;base64,{{ $etiquette['qr_base64'] }}" alt="QR code"></div>
-                    <div class="infos" style="top: {{ $margeQr + .3 }}mm; bottom: {{ $margeQr }}mm;">
+                    <div class="infos" style="top: {{ $margeQr + .3 }}mm;">
                         @if($configuration['show_designation'])
                             <div class="designation">{{ $etiquette['bien']->libelle_article ?? 'Immobilisation' }}</div>
                         @endif
