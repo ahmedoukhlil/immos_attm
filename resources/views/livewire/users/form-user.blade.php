@@ -100,6 +100,7 @@
                             @error('mdp')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
+                            <p class="mt-1 text-xs text-gray-500">8 caractères minimum, avec une majuscule, une minuscule et un chiffre.</p>
                         </div>
 
                         {{-- Confirmation mot de passe --}}
@@ -147,6 +148,7 @@
                             @enderror
                             <p class="mt-1 text-xs text-gray-500">
                                 <strong>Agent :</strong> Réalise les comptages physiques qui lui sont assignés dans la PWA.<br>
+                                <strong>Gestionnaire :</strong> Gère toutes les opérations sauf les utilisateurs.<br>
                                 <strong>Administrateur :</strong> Accès complet, y compris la gestion des utilisateurs.
                             </p>
                         </div>

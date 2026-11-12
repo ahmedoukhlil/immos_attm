@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Livewire\Livewire;
 use Tests\Concerns\CreatesLaxSchema;
 use Tests\TestCase;
 
@@ -78,6 +80,31 @@ class PagesAdministrationTest extends TestCase
         foreach (['/users', '/users/create', '/users/roles'] as $page) {
             $this->actingAs($manager)->get($page)
                 ->assertRedirect(route('dashboard'));
+        }
+    }
+
+    public function test_admin_can_create_each_supported_user_role(): void
+    {
+        $admin = User::create([
+            'users' => 'admin-creation',
+            'mdp' => 'MotDePasse123',
+            'role' => 'admin',
+        ]);
+
+        foreach (['agent', 'gestionnaire', 'admin'] as $role) {
+            Livewire::actingAs($admin)
+                ->test(\App\Livewire\Users\FormUser::class)
+                ->set('users', "nouveau-{$role}")
+                ->set('mdp', 'NouveauPasse123')
+                ->set('mdp_confirmation', 'NouveauPasse123')
+                ->set('role', $role)
+                ->call('save')
+                ->assertHasNoErrors()
+                ->assertRedirect(route('users.index'));
+
+            $user = User::where('users', "nouveau-{$role}")->firstOrFail();
+            $this->assertSame($role, $user->role);
+            $this->assertTrue(Hash::check('NouveauPasse123', $user->mdp));
         }
     }
 }
