@@ -125,6 +125,7 @@ trait CreatesLaxSchema
             $table->string('numero_chassis')->nullable();
             $table->string('numero_attm')->nullable();
             $table->string('code_immo')->nullable();
+            $table->string('photo_path')->nullable();
             $table->string('code_dernier_inventaire')->nullable();
             $table->string('code_premier_inventaire')->nullable();
             $table->string('code_propose')->nullable()->unique();

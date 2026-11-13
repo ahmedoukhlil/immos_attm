@@ -239,6 +239,112 @@
         {{-- Colonne droite (40%) --}}
         <div class="lg:col-span-2 space-y-6">
 
+            {{-- Photo d'identification du bien --}}
+            <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-6 py-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Photo du bien</h2>
+                        <p class="mt-1 text-sm text-gray-500">Photo d’identification distincte des constats d’inventaire.</p>
+                    </div>
+                    @if($bien->photo_path)
+                        <span class="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">Disponible</span>
+                    @endif
+                </div>
+
+                <div class="p-6">
+                    <div class="relative flex min-h-64 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                        @if($nouvellePhoto && ! $errors->has('nouvellePhoto'))
+                            <img
+                                src="{{ $nouvellePhoto->temporaryUrl() }}"
+                                alt="Aperçu de la nouvelle photo de {{ $bien->libelle_article }}"
+                                class="max-h-96 w-full object-contain">
+                            <span class="absolute left-3 top-3 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white shadow">Nouvel aperçu</span>
+                        @elseif($bien->photo_url)
+                            <a href="{{ $bien->photo_url }}" target="_blank" rel="noopener" class="block w-full" title="Ouvrir la photo en taille réelle">
+                                <img
+                                    src="{{ $bien->photo_url }}"
+                                    alt="Photo de {{ $bien->libelle_article }}"
+                                    class="max-h-96 w-full object-contain"
+                                    onerror="this.closest('a').classList.add('hidden'); this.closest('a').nextElementSibling.classList.remove('hidden');">
+                            </a>
+                            <div class="hidden px-6 py-12 text-center text-sm text-red-600">
+                                Le fichier photo est introuvable. Vous pouvez le remplacer ci-dessous.
+                            </div>
+                        @else
+                            <div class="px-6 py-12 text-center">
+                                <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75v10.5a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 17.25m0-.75l3.95-3.95a2.25 2.25 0 013.182 0l1.318 1.318 2.95-2.95a2.25 2.25 0 013.182 0L21 14.34M14.25 8.25h.008v.008h-.008V8.25z" />
+                                </svg>
+                                <p class="mt-3 font-medium text-gray-700">Aucune photo enregistrée</p>
+                                <p class="mt-1 text-sm text-gray-500">Ajoutez une vue claire permettant d’identifier le bien.</p>
+                            </div>
+                        @endif
+
+                        <div wire:loading.flex wire:target="nouvellePhoto,enregistrerPhoto,supprimerPhoto" class="absolute inset-0 items-center justify-center bg-white/80">
+                            <div class="flex items-center gap-2 text-sm font-medium text-indigo-700">
+                                <svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                </svg>
+                                Traitement de la photo…
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($isAdmin)
+                        <div class="mt-4">
+                            <label for="photo-bien-{{ $bien->id }}" class="inline-flex cursor-pointer items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2">
+                                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 16.5V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75v10.5a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 17.25m0-.75l4.72-4.72a2.25 2.25 0 013.182 0l1.1 1.1 2.95-2.95a2.25 2.25 0 013.182 0L21 13.84" />
+                                </svg>
+                                {{ $bien->photo_path ? 'Remplacer la photo' : 'Choisir une photo' }}
+                                <input
+                                    id="photo-bien-{{ $bien->id }}"
+                                    type="file"
+                                    wire:model="nouvellePhoto"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    class="sr-only">
+                            </label>
+                            <p class="mt-2 text-xs text-gray-500">Formats JPG, PNG ou WebP · 5 Mo maximum.</p>
+                            @error('nouvellePhoto')
+                                <p class="mt-2 text-sm font-medium text-red-600" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            @if($nouvellePhoto && ! $errors->has('nouvellePhoto'))
+                                <button
+                                    type="button"
+                                    wire:click="enregistrerPhoto"
+                                    wire:loading.attr="disabled"
+                                    wire:target="nouvellePhoto,enregistrerPhoto"
+                                    class="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60">
+                                    Enregistrer la photo
+                                </button>
+                                <button
+                                    type="button"
+                                    wire:click="$set('nouvellePhoto', null)"
+                                    wire:loading.attr="disabled"
+                                    class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    Annuler
+                                </button>
+                            @endif
+
+                            @if($bien->photo_path && ! $nouvellePhoto)
+                                <button
+                                    type="button"
+                                    wire:click="supprimerPhoto"
+                                    wire:confirm="Supprimer définitivement la photo de cette fiche ?"
+                                    wire:loading.attr="disabled"
+                                    class="inline-flex items-center rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+                                    Supprimer la photo
+                                </button>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             {{-- Card 1 : Étiquette réelle (même générateur que l'impression par site) --}}
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="mb-4 flex items-start justify-between gap-3">

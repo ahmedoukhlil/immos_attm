@@ -42,6 +42,7 @@ class Immobilisation extends Model
         'numero_chassis',
         'numero_attm',
         'code_immo',
+        'photo_path',
         'code_dernier_inventaire',
         'code_premier_inventaire',
         'code_propose',
@@ -257,6 +258,18 @@ class Immobilisation extends Model
     public function getScanCodeAttribute(): string
     {
         return 'GS'.$this->id;
+    }
+
+    /**
+     * URL publique de la photo d'identification du bien.
+     */
+    public function getPhotoUrlAttribute(): ?string
+    {
+        if (empty($this->photo_path)) {
+            return null;
+        }
+
+        return '/storage/'.ltrim(str_replace('\\', '/', $this->photo_path), '/');
     }
 
     /**

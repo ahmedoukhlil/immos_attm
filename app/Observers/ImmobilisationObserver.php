@@ -23,6 +23,7 @@ class ImmobilisationObserver
         'numero_chassis',
         'numero_attm',
         'code_immo',
+        'photo_path',
         'code_dernier_inventaire',
         'code_premier_inventaire',
         'code_propose',
