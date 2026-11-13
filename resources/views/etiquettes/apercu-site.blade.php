@@ -85,10 +85,10 @@
                         </p>
                     </div>
                     <button
-                        type="button"
+                        type="submit"
                         @click="printMode = 'nouvelles'"
                         class="shrink-0 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">
-                        Imprimer uniquement les nouvelles
+                        Générer le PDF des nouvelles
                     </button>
                 </div>
             </div>

@@ -114,6 +114,21 @@ class EtiquetteQrPdfTest extends TestCase
         $this->assertNotContains($premierBien->id, $nouvelles->pluck('bien.id')->all());
     }
 
+    public function test_new_labels_call_to_action_submits_the_pdf_form(): void
+    {
+        $this->createLaxSchema();
+        DB::table('localisations')->insert(['id' => 1, 'localisation' => 'Dépôt', 'code' => 'DEP']);
+        DB::table('sites')->insert(['id' => 1, 'site' => 'Magasin', 'code' => 'MAG', 'localisation_id' => 1]);
+        DB::table('immobilisations')->insert(['id' => 1, 'site_id' => 1]);
+        $admin = User::create(['users' => 'admin-bouton-etiquettes', 'mdp' => 'MotDePasse123', 'role' => 'admin']);
+
+        $this->actingAs($admin)
+            ->get('/sites/1/etiquettes')
+            ->assertOk()
+            ->assertSee('type="submit"', false)
+            ->assertSee('Générer le PDF des nouvelles');
+    }
+
     public function test_asset_page_shows_the_real_qr_label_and_prints_it(): void
     {
         $this->createLaxSchema();
