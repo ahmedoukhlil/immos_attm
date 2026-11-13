@@ -27,7 +27,7 @@
             ['label' => 'Immobilisations', 'value' => $resume['immobilisations'], 'color' => 'text-gray-900'],
             ['label' => 'Composants à étiqueter', 'value' => $resume['composants'], 'color' => 'text-indigo-700'],
             ['label' => 'Total des étiquettes', 'value' => $resume['total'], 'color' => 'text-indigo-700'],
-            ['label' => 'Jamais générées', 'value' => $resume['nouvelles'], 'color' => 'text-amber-700'],
+            ['label' => 'Nouvelles à imprimer', 'value' => $resume['nouvelles'], 'color' => 'text-amber-700'],
         ] as $stat)
             <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <p class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ $stat['label'] }}</p>
@@ -39,6 +39,7 @@
     <form method="POST" action="{{ route('sites.etiquettes.pdf', $site) }}" target="_blank"
         class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
         x-data="{
+            printMode: @js(old('mode', $resume['nouvelles'] > 0 ? 'nouvelles' : 'complete')),
             format: @js(old('page_format', 'a4_portrait')),
             gridMode: @js(old('grid_mode', 'manual')),
             width: Number(@js(old('label_width', 52.5))), height: Number(@js(old('label_height', 21.2))),
@@ -72,15 +73,41 @@
             <p class="mt-1 text-sm text-gray-500">Configurez la planche, contrôlez l’aperçu puis générez le PDF.</p>
         </div>
 
+        @if($resume['nouvelles'] > 0)
+            <div class="border-b border-amber-200 bg-amber-50 px-5 py-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p class="font-semibold text-amber-900">
+                            {{ $resume['nouvelles'] }} nouvelle{{ $resume['nouvelles'] > 1 ? 's' : '' }} étiquette{{ $resume['nouvelles'] > 1 ? 's' : '' }} à imprimer
+                        </p>
+                        <p class="mt-1 text-sm text-amber-800">
+                            Les étiquettes déjà présentes dans l’historique de cet emplacement seront automatiquement exclues.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        @click="printMode = 'nouvelles'"
+                        class="shrink-0 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">
+                        Imprimer uniquement les nouvelles
+                    </button>
+                </div>
+            </div>
+        @else
+            <div class="border-b border-green-200 bg-green-50 px-5 py-3 text-sm text-green-800">
+                Toutes les étiquettes actuelles de cet emplacement figurent déjà dans l’historique.
+            </div>
+        @endif
+
         <div class="grid gap-8 p-5 xl:grid-cols-3">
             <div class="space-y-6 xl:col-span-2">
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <label class="text-sm font-medium text-gray-700">Biens à inclure
-                        <select name="mode" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <select name="mode" x-model="printMode" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="complete">Toutes les étiquettes ({{ $resume['total'] }})</option>
-                            <option value="nouvelles">Jamais générées ({{ $resume['nouvelles'] }})</option>
+                            <option value="nouvelles" @disabled($resume['nouvelles'] === 0)>Nouvelles uniquement ({{ $resume['nouvelles'] }})</option>
                             <option value="selection">Sélection ci-dessous</option>
                         </select>
+                        <span class="mt-1 block text-xs font-normal text-gray-500">« Nouvelles uniquement » exclut tout code déjà généré pour cet emplacement.</span>
                     </label>
                     <label class="text-sm font-medium text-gray-700">Format de page
                         <select name="page_format" x-model="format" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">

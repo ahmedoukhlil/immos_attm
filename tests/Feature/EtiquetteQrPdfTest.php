@@ -74,6 +74,46 @@ class EtiquetteQrPdfTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $reponse->getContent());
     }
 
+    public function test_new_labels_mode_only_returns_assets_added_after_the_previous_generation(): void
+    {
+        $this->createLaxSchema();
+        DB::table('localisations')->insert(['id' => 1, 'localisation' => 'Dépôt', 'code' => 'DEP']);
+        DB::table('sites')->insert(['id' => 1, 'site' => 'Magasin', 'code' => 'MAG', 'localisation_id' => 1]);
+        DB::table('categories')->insert(['id' => 1, 'categorie' => 'Matériel', 'code' => 'MAT']);
+        DB::table('designations')->insert(['id' => 1, 'designation' => 'Armoire', 'code' => 'ARM', 'categorie_id' => 1]);
+        DB::table('etats')->insert(['id' => 1, 'etat' => 'Bon', 'code' => 'BON']);
+        $admin = User::create(['users' => 'admin-nouvelles-etiquettes', 'mdp' => 'MotDePasse123', 'role' => 'admin']);
+
+        $premierBien = Immobilisation::create([
+            'site_id' => 1,
+            'categorie_id' => 1,
+            'designation_id' => 1,
+            'etat_id' => 1,
+            'annee_acquisition' => 2026,
+        ]);
+        $site = Site::findOrFail(1);
+        $service = app(EtiquetteService::class);
+        $service->tracerGeneration(
+            $service->etiquettesPourSite($site),
+            $site,
+            (int) $admin->getAuthIdentifier(),
+            'complete',
+        );
+
+        $nouveauBien = Immobilisation::create([
+            'site_id' => 1,
+            'categorie_id' => 1,
+            'designation_id' => 1,
+            'etat_id' => 1,
+            'annee_acquisition' => 2026,
+        ]);
+
+        $nouvelles = $service->etiquettesPourSite($site, 'nouvelles');
+
+        $this->assertSame([$nouveauBien->id], $nouvelles->pluck('bien.id')->all());
+        $this->assertNotContains($premierBien->id, $nouvelles->pluck('bien.id')->all());
+    }
+
     public function test_asset_page_shows_the_real_qr_label_and_prints_it(): void
     {
         $this->createLaxSchema();
