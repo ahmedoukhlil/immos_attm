@@ -45,6 +45,18 @@
                     </button>
                 @endif
 
+                @if(! $showArchived && $isAdmin && count($selectedBiens) > 0)
+                    <button
+                        type="button"
+                        wire:click="archiverSelection"
+                        wire:confirm="Archiver les {{ count($selectedBiens) }} immobilisations sélectionnées ? Elles pourront être restaurées depuis les archives."
+                        wire:loading.attr="disabled"
+                        wire:target="archiverSelection"
+                        class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50">
+                        Archiver la sélection ({{ count($selectedBiens) }})
+                    </button>
+                @endif
+
                 @if(! $showArchived)
                     <a
                         href="{{ route('biens.export-excel') }}"
@@ -313,6 +325,15 @@
                                         <a href="{{ route('biens.show', $bien) }}" class="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Voir</a>
                                         @if($isAdmin)
                                             <a href="{{ route('biens.edit', $bien) }}" class="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100">Modifier</a>
+                                            <button
+                                                type="button"
+                                                wire:click="deleteBien({{ $bien->id }})"
+                                                wire:confirm="Êtes-vous sûr de vouloir archiver cette immobilisation ? Vous pourrez la restaurer depuis les archives."
+                                                wire:loading.attr="disabled"
+                                                wire:target="deleteBien({{ $bien->id }})"
+                                                class="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50">
+                                                Archiver
+                                            </button>
                                         @endif
                                     @endif
                                 </div>

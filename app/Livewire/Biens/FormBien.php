@@ -46,6 +46,8 @@ class FormBien extends Component
 
     public $numero_chassis = '';
 
+    public $immatriculation = '';
+
     public $numero_attm = '';
 
     public $code_immo = '';
@@ -76,6 +78,7 @@ class FormBien extends Component
             $this->modele = $bien->modele ?? '';
             $this->numero_chassis = $bien->numero_chassis ?? '';
             $this->numero_attm = $bien->numero_attm ?? '';
+            $this->immatriculation = $bien->immatriculation ?? '';
             $this->code_immo = $bien->code_immo ?? '';
             $this->etat_id = (string) $bien->etat_id;
             $this->code_dernier_inventaire = $bien->code_dernier_inventaire ?? '';
@@ -87,8 +90,7 @@ class FormBien extends Component
         }
 
         // Pré-sélection de l'état le plus fréquent pour accélérer la saisie
-        $this->etat_id = (string) (Etat::where('code', 'BON')->value('id') ?? '');
-        $this->annee_acquisition = (string) now()->year;
+        // Aucun champ métier n'est prérempli obligatoirement.
     }
 
     /**
@@ -179,19 +181,20 @@ class FormBien extends Component
     protected function rules(): array
     {
         $rules = [
-            'site_id' => 'required|exists:sites,id',
-            'categorie_id' => 'required|exists:categories,id',
-            'designation_id' => 'required|exists:designations,id',
+            'site_id' => 'nullable|exists:sites,id',
+            'categorie_id' => 'nullable|exists:categories,id',
+            'designation_id' => 'nullable|exists:designations,id',
             'descriptif' => 'nullable|string|max:255',
             'marque' => 'nullable|string|max:100',
             'modele' => 'nullable|string|max:100',
             'numero_chassis' => 'nullable|string|max:100',
             'numero_attm' => 'nullable|string|max:100',
+            'immatriculation' => 'nullable|string|max:100',
             'code_immo' => 'nullable|string|max:100',
-            'etat_id' => 'required|exists:etats,id',
+            'etat_id' => 'nullable|exists:etats,id',
             'code_dernier_inventaire' => 'nullable|string|max:40',
             'code_premier_inventaire' => 'nullable|string|max:40',
-            'annee_acquisition' => 'required|integer|min:1950|max:'.((int) now()->year + 1),
+            'annee_acquisition' => 'nullable|integer|min:1950|max:'.((int) now()->year + 1),
             'autres_informations' => 'nullable|string|max:2000',
         ];
 
@@ -215,6 +218,7 @@ class FormBien extends Component
             'marque.max' => 'La marque ne peut pas dépasser 100 caractères.',
             'modele.max' => 'Le modèle ne peut pas dépasser 100 caractères.',
             'numero_chassis.max' => 'Le numéro de châssis ne peut pas dépasser 100 caractères.',
+            'immatriculation.max' => 'L’immatriculation ne peut pas dépasser 100 caractères.',
             'numero_attm.max' => 'Le numéro ATTM ne peut pas dépasser 100 caractères.',
             'code_immo.max' => 'Le code immo ne peut pas dépasser 100 caractères.',
             'etat_id.required' => 'L\'état est obligatoire.',
@@ -234,19 +238,20 @@ class FormBien extends Component
 
         $validated = $this->validate();
         $donnees = [
-            'site_id' => $validated['site_id'],
-            'categorie_id' => $validated['categorie_id'],
-            'designation_id' => $validated['designation_id'],
+            'site_id' => $validated['site_id'] ?: null,
+            'categorie_id' => $validated['categorie_id'] ?: null,
+            'designation_id' => $validated['designation_id'] ?: null,
             'descriptif' => trim((string) $validated['descriptif']) ?: null,
             'marque' => trim((string) $validated['marque']) ?: null,
             'modele' => trim((string) $validated['modele']) ?: null,
             'numero_chassis' => trim((string) $validated['numero_chassis']) ?: null,
             'numero_attm' => trim((string) $validated['numero_attm']) ?: null,
+            'immatriculation' => trim((string) $validated['immatriculation']) ?: null,
             'code_immo' => trim((string) $validated['code_immo']) ?: null,
-            'etat_id' => $validated['etat_id'],
+            'etat_id' => $validated['etat_id'] ?: null,
             'code_dernier_inventaire' => trim((string) $validated['code_dernier_inventaire']) ?: null,
             'code_premier_inventaire' => trim((string) $validated['code_premier_inventaire']) ?: null,
-            'annee_acquisition' => (int) $validated['annee_acquisition'],
+            'annee_acquisition' => $validated['annee_acquisition'] !== '' && $validated['annee_acquisition'] !== null ? (int) $validated['annee_acquisition'] : null,
             'autres_informations' => trim((string) $validated['autres_informations']) ?: null,
         ];
 
