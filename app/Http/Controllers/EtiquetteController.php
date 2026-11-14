@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Categorie;
 use App\Models\EtiquetteImpression;
 use App\Models\Site;
 use App\Services\EtiquetteService;
@@ -54,6 +55,7 @@ class EtiquetteController extends Controller
             'resume' => $this->etiquetteService->resume($site),
             'historique' => $historique,
             'formatsPage' => EtiquetteService::FORMATS_PAGE,
+            'categories' => Categorie::query()->whereHas('immobilisations', fn ($query) => $query->where('site_id', $site->id))->orderBy('categorie')->get(),
             'qrApercu' => 'data:image/svg+xml;base64,'.base64_encode(
                 QrCode::format('svg')->size(180)->margin(1)->errorCorrection('M')
                     ->generate($site->immobilisations->first()?->contenu_qr ?? 'GS0')
@@ -65,6 +67,7 @@ class EtiquetteController extends Controller
     {
         $validated = $request->validate([
             'mode' => ['required', Rule::in(['complete', 'nouvelles', 'selection', 'bien', 'composant'])],
+            'categorie_id' => ['nullable', 'integer', 'exists:categories,id'],
             'biens' => ['nullable', 'array'],
             'biens.*' => ['integer', 'exists:immobilisations,id'],
             'bien' => ['nullable', 'integer', 'exists:immobilisations,id'],
@@ -93,6 +96,7 @@ class EtiquetteController extends Controller
 
         $mode = $validated['mode'];
         $bienIds = $validated['biens'] ?? [];
+        $categorieId = isset($validated['categorie_id']) ? (int) $validated['categorie_id'] : null;
 
         if ($mode === 'selection' && $bienIds === []) {
             return back()->with('error', 'Sélectionnez au moins une immobilisation.');
@@ -100,7 +104,9 @@ class EtiquetteController extends Controller
 
         if (in_array($mode, ['bien', 'composant'], true)) {
             $bienId = (int) ($validated['bien'] ?? 0);
-            $bien = $site->immobilisations()->whereKey($bienId)->firstOrFail();
+            $bien = $site->immobilisations()->whereKey($bienId)
+                ->when($categorieId !== null, fn ($query) => $query->where('categorie_id', $categorieId))
+                ->firstOrFail();
             $etiquettes = $this->etiquetteService->etiquettesPourBien($bien);
 
             if ($mode === 'composant') {
@@ -110,7 +116,7 @@ class EtiquetteController extends Controller
                     ->values();
             }
         } else {
-            $etiquettes = $this->etiquetteService->etiquettesPourSite($site, $mode, $bienIds);
+            $etiquettes = $this->etiquetteService->etiquettesPourSite($site, $mode, $bienIds, $categorieId);
         }
 
         if ($etiquettes->isEmpty()) {

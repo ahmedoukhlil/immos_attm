@@ -110,6 +110,15 @@
                         </select>
                         <span class="mt-1 block text-xs font-normal text-gray-500">« Nouvelles uniquement » exclut tout code déjà généré pour cet emplacement.</span>
                     </label>
+                    <label class="text-sm font-medium text-gray-700">Catégorie de matériel
+                        <select name="categorie_id" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">Toutes les catégories</option>
+                            @foreach($categories as $categorie)
+                                <option value="{{ $categorie->id }}" @selected(old('categorie_id') == $categorie->id)>{{ $categorie->categorie }}</option>
+                            @endforeach
+                        </select>
+                        <span class="mt-1 block text-xs font-normal text-gray-500">Seules les immobilisations de cette catégorie seront incluses dans le PDF.</span>
+                    </label>
                     <label class="text-sm font-medium text-gray-700">Format de page
                         <select name="page_format" x-model="format" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                             @foreach($formatsPage as $valeur => $format)
