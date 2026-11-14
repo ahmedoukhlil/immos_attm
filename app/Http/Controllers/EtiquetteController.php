@@ -82,6 +82,7 @@ class EtiquetteController extends Controller
             'offset_y' => ['nullable', 'numeric', 'between:-10,10'],
             'printer_margin' => ['nullable', 'numeric', 'between:0,10'],
             'qr_size' => ['nullable', 'numeric', 'between:12,45'],
+            'content_scale' => ['nullable', 'numeric', 'between:100,125'],
             'start_position' => ['nullable', 'integer', 'between:1,200'],
             'background_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'text_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],

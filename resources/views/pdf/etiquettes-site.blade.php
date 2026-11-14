@@ -1,3 +1,7 @@
+@php
+    $echelleContenu = ($configuration['content_scale'] ?? 100) / 100;
+    $tailleQrRendue = $configuration['qr_size'] * $echelleContenu;
+@endphp
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -29,53 +33,53 @@
         .contenu { position: absolute; overflow: hidden; }
         .qr {
             position: absolute;
-            left: 2.7mm;
-            width: {{ $configuration['qr_size'] }}mm;
-            height: {{ $configuration['qr_size'] }}mm;
-            padding: .4mm;
+            left: {{ 2.7 * $echelleContenu }}mm;
+            width: {{ $tailleQrRendue }}mm;
+            height: {{ $tailleQrRendue }}mm;
+            padding: {{ .4 * $echelleContenu }}mm;
             background: #fff;
         }
         .qr img { width: 100%; height: 100%; display: block; }
         .infos {
             position: absolute;
-            right: 2.7mm;
-            left: {{ $configuration['qr_size'] + 5.2 }}mm;
+            right: {{ 2.7 * $echelleContenu }}mm;
+            left: {{ $tailleQrRendue + (5.2 * $echelleContenu) }}mm;
             overflow: hidden;
         }
-        .designation { font-size: 7.1pt; font-weight: bold; line-height: 1.08; }
-        .composant { margin-top: .7mm; font-size: 5.7pt; line-height: 1.05; opacity: .78; }
-        .champ-label { margin-top: 1.4mm; font-size: 4pt; font-weight: bold; text-transform: uppercase; letter-spacing: .35pt; opacity: .48; }
-        .site { margin-top: .25mm; font-size: 5.6pt; line-height: 1.05; }
+        .designation { font-size: {{ 7.1 * $echelleContenu }}pt; font-weight: bold; line-height: 1.08; }
+        .composant { margin-top: {{ .7 * $echelleContenu }}mm; font-size: {{ 5.7 * $echelleContenu }}pt; line-height: 1.05; opacity: .78; }
+        .champ-label { margin-top: {{ 1.4 * $echelleContenu }}mm; font-size: {{ 4 * $echelleContenu }}pt; font-weight: bold; text-transform: uppercase; letter-spacing: {{ .35 * $echelleContenu }}pt; opacity: .48; }
+        .site { margin-top: {{ .25 * $echelleContenu }}mm; font-size: {{ 5.6 * $echelleContenu }}pt; line-height: 1.05; }
         .code {
-            margin-top: 1mm;
+            margin-top: {{ 1 * $echelleContenu }}mm;
             overflow: hidden;
             font-family: DejaVu Sans, sans-serif;
-            font-size: 5.2pt;
+            font-size: {{ 5.2 * $echelleContenu }}pt;
             font-weight: bold;
             line-height: 1.1;
-            letter-spacing: .1pt;
+            letter-spacing: {{ .1 * $echelleContenu }}pt;
             white-space: nowrap;
             text-align: left;
         }
         @if($configuration['compact_layout'])
-        .qr { left: 1.3mm; padding: .25mm; }
-        .infos { right: 1.2mm; left: {{ $configuration['qr_size'] + 3 }}mm; }
-        .designation { font-size: 5.1pt; line-height: 1.03; }
-        .composant { margin-top: .45mm; font-size: 4.2pt; }
-        .champ-label { margin-top: .8mm; font-size: 3pt; letter-spacing: .1pt; }
-        .site { margin-top: .15mm; font-size: 4.1pt; }
-        .code { margin-top: .7mm; font-size: 4.4pt; }
+        .qr { left: {{ 1.3 * $echelleContenu }}mm; padding: {{ .25 * $echelleContenu }}mm; }
+        .infos { right: {{ 1.2 * $echelleContenu }}mm; left: {{ $tailleQrRendue + (3 * $echelleContenu) }}mm; }
+        .designation { font-size: {{ 5.1 * $echelleContenu }}pt; line-height: 1.03; }
+        .composant { margin-top: {{ .45 * $echelleContenu }}mm; font-size: {{ 4.2 * $echelleContenu }}pt; }
+        .champ-label { margin-top: {{ .8 * $echelleContenu }}mm; font-size: {{ 3 * $echelleContenu }}pt; letter-spacing: {{ .1 * $echelleContenu }}pt; }
+        .site { margin-top: {{ .15 * $echelleContenu }}mm; font-size: {{ 4.1 * $echelleContenu }}pt; }
+        .code { margin-top: {{ .7 * $echelleContenu }}mm; font-size: {{ 4.4 * $echelleContenu }}pt; }
         @endif
         @if($configuration['narrow_layout'])
-        .code { font-size: 4pt; letter-spacing: 0; }
+        .code { font-size: {{ 4 * $echelleContenu }}pt; letter-spacing: 0; }
         @endif
         @if($configuration['short_layout'])
-        .qr { left: 1.2mm; padding: .2mm; }
-        .designation { font-size: 5pt; line-height: 1.02; }
-        .composant { margin-top: .35mm; font-size: 4pt; }
-        .champ-label { margin-top: .55mm; font-size: 2.8pt; }
-        .site { margin-top: .1mm; font-size: 3.8pt; }
-        .code { margin-top: .55mm; }
+        .qr { left: {{ 1.2 * $echelleContenu }}mm; padding: {{ .2 * $echelleContenu }}mm; }
+        .designation { font-size: {{ 5 * $echelleContenu }}pt; line-height: 1.02; }
+        .composant { margin-top: {{ .35 * $echelleContenu }}mm; font-size: {{ 4 * $echelleContenu }}pt; }
+        .champ-label { margin-top: {{ .55 * $echelleContenu }}mm; font-size: {{ 2.8 * $echelleContenu }}pt; }
+        .site { margin-top: {{ .1 * $echelleContenu }}mm; font-size: {{ 3.8 * $echelleContenu }}pt; }
+        .code { margin-top: {{ .55 * $echelleContenu }}mm; }
         @endif
     </style>
 </head>
@@ -103,7 +107,7 @@
                 // même flux afin que le code suive immédiatement le nom du site.
                 $margeQr = $configuration['narrow_layout']
                     ? 1.2
-                    : max(.8, ($hauteurContenu - $configuration['qr_size']) / 2);
+                    : max(.8, ($hauteurContenu - $tailleQrRendue) / 2);
             @endphp
             @if($etiquette)
             <article class="etiquette" style="left: {{ $gauche }}mm; top: {{ $haut }}mm;">

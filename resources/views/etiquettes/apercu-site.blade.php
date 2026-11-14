@@ -49,6 +49,7 @@
             printerMargin: Number(@js(old('printer_margin', 4))),
             startPosition: Number(@js(old('start_position', 1))),
             qrSize: Number(@js(old('qr_size', 12))),
+            contentScale: Number(@js(old('content_scale', 100))),
             bg: '#FFFFFF', text: '#111827',
             showDesignation: true, showEmplacement: true, showCode: true,
             get pageWidth() { return this.format === 'a4_paysage' ? 297 : (this.format === 'a5_portrait' ? 148 : (this.format === 'a5_paysage' ? 210 : (this.format === 'individuelle' ? this.width : 210))); },
@@ -125,6 +126,13 @@
                     <label class="text-sm font-medium text-gray-700">Taille du QR (mm)
                         <input name="qr_size" x-model.number="qrSize" type="number" min="12" max="45" step="1" class="mt-1 block w-full rounded-lg border-gray-300 text-sm">
                         <span class="mt-1 block text-xs font-normal text-gray-500">12 mm minimum recommandé pour une lecture fiable.</span>
+                    </label>
+                    <label class="text-sm font-medium text-gray-700 sm:col-span-2">Taille du contenu
+                        <div class="mt-1 flex items-center gap-3">
+                            <input name="content_scale" x-model.number="contentScale" type="range" min="100" max="125" step="5" class="h-2 w-full cursor-pointer accent-indigo-600">
+                            <output class="w-14 rounded-md bg-indigo-50 px-2 py-1 text-center text-sm font-semibold text-indigo-700" x-text="`${contentScale}%`"></output>
+                        </div>
+                        <span class="mt-1 block text-xs font-normal text-gray-500">Agrandit le QR et les textes sans dépasser la largeur et la hauteur calculées de l’étiquette.</span>
                     </label>
                     <label x-show="manualGrid" class="text-sm font-medium text-gray-700">Étiquettes par ligne (colonnes)
                         <input name="columns" x-model.number="manualColumns" :disabled="!manualGrid" type="number" min="1" max="12" step="1" class="mt-1 block w-full rounded-lg border-gray-300 text-sm">
@@ -210,7 +218,7 @@
                 <div class="mt-3 overflow-auto rounded-xl bg-gray-100 p-4">
                     <div class="relative mx-auto flex items-center overflow-hidden shadow-sm"
                         :style="`width: ${effectiveLabelWidth < 45 ? '220px' : '100%'}; max-width: 360px; aspect-ratio: ${effectiveLabelWidth}/${effectiveLabelHeight}; background:${bg}; color:${text}`">
-                        <div class="flex items-center gap-3 px-3 py-2">
+                        <div class="flex items-center gap-3 px-3 py-2 transition-transform" :style="`transform: scale(${contentScale / 100}); transform-origin: center;`">
                             <div class="shrink-0 bg-white p-1"><img src="{{ $qrApercu }}" alt="Aperçu QR" class="h-[68px] w-[68px]"></div>
                             <div class="min-w-0 text-xs">
                                 <p x-show="showDesignation" class="line-clamp-2 text-sm font-bold leading-tight">{{ $site->immobilisations->first()?->designation?->designation ?? 'Désignation du bien' }}</p>

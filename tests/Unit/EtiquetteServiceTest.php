@@ -129,6 +129,34 @@ class EtiquetteServiceTest extends TestCase
         $this->assertTrue($configuration['short_layout']);
     }
 
+    public function test_le_contenu_peut_etre_agrandi_sans_modifier_les_dimensions_de_letiquette(): void
+    {
+        $service = new EtiquetteService;
+        $normale = $service->configurationImpression([
+            'page_format' => 'a4_portrait',
+            'grid_mode' => 'manual',
+            'columns' => 4,
+            'rows' => 14,
+            'page_margin' => 2,
+            'qr_size' => 12,
+            'content_scale' => 100,
+        ]);
+        $agrandie = $service->configurationImpression([
+            'page_format' => 'a4_portrait',
+            'grid_mode' => 'manual',
+            'columns' => 4,
+            'rows' => 14,
+            'page_margin' => 2,
+            'qr_size' => 12,
+            'content_scale' => 125,
+        ]);
+
+        $this->assertSame($normale['label_width'], $agrandie['label_width']);
+        $this->assertSame($normale['label_height'], $agrandie['label_height']);
+        $this->assertSame(100.0, $normale['content_scale']);
+        $this->assertSame(125.0, $agrandie['content_scale']);
+    }
+
     /** @param array<int, DesignationComposant> $composants */
     private function bienAvecComposants(bool $estCompose, array $composants): Immobilisation
     {

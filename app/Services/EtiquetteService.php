@@ -46,6 +46,8 @@ class EtiquetteService
         // Bande que l'imprimante ne sait pas encrer : la grille reste calée sur la planche,
         // seul le contenu des étiquettes qui la chevauchent est rentré vers l'intérieur.
         $zoneNonImprimable = (float) ($options['printer_margin'] ?? 4);
+        // Agrandit le contenu sans modifier les dimensions physiques de l'étiquette.
+        $echelleContenuDemandee = max(100.0, min(125.0, (float) ($options['content_scale'] ?? 100)));
         $page = self::FORMATS_PAGE[$format];
         $modeGrille = ($options['grid_mode'] ?? 'dimensions') === 'manual' ? 'manual' : 'dimensions';
 
@@ -68,6 +70,18 @@ class EtiquetteService
             $lignes = max(1, (int) floor(($hauteurUtile + $espacementVertical) / ($hauteurEtiquette + $espacementVertical)));
         }
 
+        $tailleQr = min(
+            (float) ($options['qr_size'] ?? 18),
+            max(8, $hauteurEtiquette - 8.5),
+            max(8, $largeurEtiquette * 0.46)
+        );
+        $echelleMaximale = min(
+            1.25,
+            max(1.0, ($hauteurEtiquette - 2.4) / max(1.0, $tailleQr)),
+            max(1.0, ($largeurEtiquette * 0.46) / max(1.0, $tailleQr)),
+        );
+        $echelleContenu = min($echelleContenuDemandee / 100, $echelleMaximale) * 100;
+
         return [
             'page_format' => $format,
             'grid_mode' => $modeGrille,
@@ -85,11 +99,8 @@ class EtiquetteService
             'rows' => $lignes,
             'labels_per_page' => $colonnes * $lignes,
             'start_position' => max(1, (int) ($options['start_position'] ?? 1)),
-            'qr_size' => min(
-                (float) ($options['qr_size'] ?? 18),
-                max(8, $hauteurEtiquette - 8.5),
-                max(8, $largeurEtiquette * 0.46)
-            ),
+            'qr_size' => $tailleQr,
+            'content_scale' => round($echelleContenu, 1),
             'compact_layout' => $largeurEtiquette < 45 || $hauteurEtiquette < 24,
             'narrow_layout' => $largeurEtiquette < 45,
             'short_layout' => $hauteurEtiquette < 24,
