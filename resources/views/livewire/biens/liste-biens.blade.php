@@ -45,6 +45,18 @@
                     </button>
                 @endif
 
+                @if(! $showArchived && $isAdmin && count($selectedBiens) > 0)
+                    <button
+                        type="button"
+                        wire:click="archiverSelection"
+                        wire:confirm="Archiver les {{ count($selectedBiens) }} immobilisations sélectionnées ? Elles pourront être restaurées depuis les archives."
+                        wire:loading.attr="disabled"
+                        wire:target="archiverSelection"
+                        class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50">
+                        Archiver la sélection ({{ count($selectedBiens) }})
+                    </button>
+                @endif
+
                 @if(! $showArchived)
                     <a
                         href="{{ route('biens.export-excel') }}"
