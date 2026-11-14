@@ -237,13 +237,14 @@ class Immobilisation extends Model
 
     /**
      * Référence métier prioritaire affichée sur l'étiquette.
-     * L'ordre demandé est : numéro ATTM, dernier inventaire, numéro de châssis.
+     * L'ordre demandé est : numéro immo, numéro ATTM, dernier inventaire, numéro de châssis.
      *
      * @return array{libelle: string, valeur: string}|null
      */
     public function getReferenceEtiquetteAttribute(): ?array
     {
         foreach ([
+            ['libelle' => 'N° immo', 'valeur' => $this->code_immo],
             ['libelle' => 'N° ATTM', 'valeur' => $this->numero_attm],
             ['libelle' => 'Dernier inv.', 'valeur' => $this->code_dernier_inventaire],
             ['libelle' => 'N° châssis', 'valeur' => $this->numero_chassis],

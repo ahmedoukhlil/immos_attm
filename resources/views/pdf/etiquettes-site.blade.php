@@ -141,13 +141,6 @@
                                 {{ $etiquette['reference']['valeur'] }}
                             </div>
                         @endif
-                        {{-- Référence supplémentaire facultative, distincte du N° ATTM et du code d'inventaire. --}}
-                        @if(filled($etiquette['bien']->code_immo))
-                            <div class="reference">
-                                <span class="reference-label">N° immo :</span>
-                                {{ $etiquette['bien']->code_immo }}
-                            </div>
-                        @endif
                         @if($configuration['show_code'])
                             {{-- Code d'inventaire en clair, juste sous le site. --}}
                             <div class="code">{{ $etiquette['code_affiche'] ?? $etiquette['code'] }}</div>
