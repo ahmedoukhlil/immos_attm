@@ -303,6 +303,7 @@ class ListeBiens extends Component
                     ->orWhere('marque', 'like', "%{$search}%")
                     ->orWhere('modele', 'like', "%{$search}%")
                     ->orWhere('numero_chassis', 'like', "%{$search}%")
+                    ->orWhere('immatriculation', 'like', "%{$search}%")
                     ->orWhere('numero_attm', 'like', "%{$search}%")
                     ->orWhere('code_immo', 'like', "%{$search}%")
                     ->orWhereHas('designation', fn (Builder $relation) => $relation->where('designation', 'like', "%{$search}%"))
