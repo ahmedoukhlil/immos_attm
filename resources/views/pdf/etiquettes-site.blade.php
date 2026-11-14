@@ -46,7 +46,6 @@
             left: {{ $tailleQrRendue + (5.2 * $echelleContenu) }}mm;
             overflow: hidden;
         }
-        .code-immo { font-size: {{ 7.4 * $echelleContenu }}pt; font-weight: bold; line-height: 1.1; overflow: hidden; overflow-wrap: anywhere; margin-bottom: {{ .7 * $echelleContenu }}mm; }
         .designation { font-size: {{ 7.1 * $echelleContenu }}pt; font-weight: bold; line-height: 1.08; }
         .composant { margin-top: {{ .7 * $echelleContenu }}mm; font-size: {{ 5.7 * $echelleContenu }}pt; line-height: 1.05; opacity: .78; }
         .champ-label { margin-top: {{ 1.4 * $echelleContenu }}mm; font-size: {{ 4 * $echelleContenu }}pt; font-weight: bold; text-transform: uppercase; letter-spacing: {{ .35 * $echelleContenu }}pt; opacity: .48; }
@@ -74,7 +73,6 @@
         @if($configuration['compact_layout'])
         .qr { left: {{ 1.3 * $echelleContenu }}mm; padding: {{ .25 * $echelleContenu }}mm; }
         .infos { right: {{ 1.2 * $echelleContenu }}mm; left: {{ $tailleQrRendue + (3 * $echelleContenu) }}mm; }
-        .code-immo { font-size: {{ 5.6 * $echelleContenu }}pt; }
         .designation { font-size: {{ 5.1 * $echelleContenu }}pt; line-height: 1.03; }
         .composant { margin-top: {{ .45 * $echelleContenu }}mm; font-size: {{ 4.2 * $echelleContenu }}pt; }
         .champ-label { margin-top: {{ .8 * $echelleContenu }}mm; font-size: {{ 3 * $echelleContenu }}pt; letter-spacing: {{ .1 * $echelleContenu }}pt; }
@@ -127,14 +125,13 @@
                 <div class="contenu" style="left: {{ $retraitGauche }}mm; top: {{ $retraitHaut }}mm; width: {{ $configuration['label_width'] - $retraitGauche - $retraitDroite }}mm; height: {{ $hauteurContenu }}mm;">
                     <div class="qr" style="top: {{ $margeQr }}mm;"><img src="data:image/svg+xml;base64,{{ $etiquette['qr_base64'] }}" alt="QR code"></div>
                     <div class="infos" style="top: {{ $margeQr + .3 }}mm;">
-                        <div class="code-immo">Code immo : {{ filled($etiquette['bien']->code_immo) ? $etiquette['bien']->code_immo : ($etiquette['code_affiche'] ?? $etiquette['code']) }}</div>
-                        @if($configuration['show_designation'] && filled($etiquette['bien']->designation?->designation))
+                        @if($configuration['show_designation'])
                             <div class="designation">{{ $etiquette['bien']->libelle_article ?? 'Immobilisation' }}</div>
                         @endif
                         @if($etiquette['nom_composant'])
                             <div class="composant">{{ $etiquette['nom_composant'] }}</div>
                         @endif
-                        @if($configuration['show_emplacement'] && filled($site->site))
+                        @if($configuration['show_emplacement'])
                             <div class="champ-label">Site</div>
                             <div class="site">{{ $site->site }}</div>
                         @endif
@@ -144,7 +141,14 @@
                                 {{ $etiquette['reference']['valeur'] }}
                             </div>
                         @endif
-                        @if($configuration['show_code'] && filled($etiquette['bien']->code_immo))
+                        {{-- Référence supplémentaire facultative, distincte du N° ATTM et du code d'inventaire. --}}
+                        @if(filled($etiquette['bien']->code_immo))
+                            <div class="reference">
+                                <span class="reference-label">N° immo :</span>
+                                {{ $etiquette['bien']->code_immo }}
+                            </div>
+                        @endif
+                        @if($configuration['show_code'])
                             {{-- Code d'inventaire en clair, juste sous le site. --}}
                             <div class="code">{{ $etiquette['code_affiche'] ?? $etiquette['code'] }}</div>
                         @endif
