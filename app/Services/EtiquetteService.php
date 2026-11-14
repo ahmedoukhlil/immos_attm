@@ -117,7 +117,7 @@ class EtiquetteService
      * @param  array<int, int|string>  $bienIds
      * @return Collection<int, array{bien: Immobilisation, composant: mixed, code: string, code_affiche: string, contenu_qr: string, nom_composant: ?string}>
      */
-    public function etiquettesPourSite(Site $site, string $mode = 'complete', array $bienIds = []): Collection
+    public function etiquettesPourSite(Site $site, string $mode = 'complete', array $bienIds = [], ?int $categorieId = null): Collection
     {
         $biens = $site->immobilisations()
             ->with([
@@ -126,6 +126,7 @@ class EtiquetteService
                 'site.localisation',
             ])
             ->when($mode === 'selection', fn ($query) => $query->whereIn('id', $bienIds))
+            ->when($categorieId !== null, fn ($query) => $query->where('categorie_id', $categorieId))
             ->orderBy('id')
             ->get();
 
