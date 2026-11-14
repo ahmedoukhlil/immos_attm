@@ -223,6 +223,47 @@ class ListeBiens extends Component
     }
 
     /**
+     * Archive les immobilisations sélectionnées, en conservant les événements
+     * Eloquent (observateurs, audit) pour chaque bien.
+     */
+    public function archiverSelection(): void
+    {
+        abort_unless(auth()->user()?->canManageOperations(), 403);
+
+        if ($this->showArchived) {
+            return;
+        }
+
+        $ids = collect($this->selectedBiens)
+            ->filter(fn ($id) => is_scalar($id) && ctype_digit((string) $id) && (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            session()->flash('warning', 'Sélectionnez au moins une immobilisation à archiver.');
+
+            return;
+        }
+
+        $nombre = 0;
+
+        Immobilisation::query()
+            ->whereKey($ids)
+            ->chunkById(200, function ($biens) use (&$nombre): void {
+                foreach ($biens as $bien) {
+                    $bien->delete();
+                    $nombre++;
+                }
+            });
+
+        $this->selectedBiens = [];
+
+        session()->flash('success', $nombre.' immobilisation(s) archivée(s) avec succès.');
+    }
+
+    /**
      * Restaure une immobilisation précédemment archivée.
      */
     public function restoreBien($bienId): void
