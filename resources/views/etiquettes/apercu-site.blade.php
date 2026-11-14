@@ -222,6 +222,7 @@
                         <div class="flex items-center gap-3 px-3 py-2 transition-transform" :style="`transform: scale(${contentScale / 100}); transform-origin: center;`">
                             <div class="shrink-0 bg-white p-1"><img src="{{ $qrApercu }}" alt="Aperçu QR" class="h-[68px] w-[68px]"></div>
                             <div class="min-w-0 text-xs">
+                                <p class="truncate text-sm font-bold">Code immo : {{ $site->immobilisations->first()?->code_immo ?: ($site->immobilisations->first()?->code_formate ?? "GS0") }}</p>
                                 <p x-show="showDesignation" class="line-clamp-2 text-sm font-bold leading-tight">{{ $site->immobilisations->first()?->designation?->designation ?? 'Désignation du bien' }}</p>
                                 <div x-show="showEmplacement" class="mt-2">
                                     <p class="text-[8px] font-bold uppercase tracking-wider opacity-40">Site</p>
