@@ -325,6 +325,15 @@
                                         <a href="{{ route('biens.show', $bien) }}" class="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">Voir</a>
                                         @if($isAdmin)
                                             <a href="{{ route('biens.edit', $bien) }}" class="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100">Modifier</a>
+                                            <button
+                                                type="button"
+                                                wire:click="deleteBien({{ $bien->id }})"
+                                                wire:confirm="Êtes-vous sûr de vouloir archiver cette immobilisation ? Vous pourrez la restaurer depuis les archives."
+                                                wire:loading.attr="disabled"
+                                                wire:target="deleteBien({{ $bien->id }})"
+                                                class="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50">
+                                                Archiver
+                                            </button>
                                         @endif
                                     @endif
                                 </div>
