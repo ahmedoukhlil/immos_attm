@@ -215,6 +215,7 @@
 
             <aside>
                 <h3 class="text-sm font-semibold text-gray-900">Aperçu de l’étiquette</h3>
+                @php $bienApercu = $site->immobilisations->first(); @endphp
                 <div class="mt-3 overflow-auto rounded-xl bg-gray-100 p-4">
                     <div class="relative mx-auto flex items-center overflow-hidden shadow-sm"
                         :style="`width: ${effectiveLabelWidth < 45 ? '220px' : '100%'}; max-width: 360px; aspect-ratio: ${effectiveLabelWidth}/${effectiveLabelHeight}; background:${bg}; color:${text}`">
@@ -226,6 +227,12 @@
                                     <p class="text-[8px] font-bold uppercase tracking-wider opacity-40">Site</p>
                                     <p class="truncate">{{ $site->site }}</p>
                                 </div>
+                                @if($bienApercu?->reference_etiquette)
+                                    <p class="mt-1 truncate text-[8px] font-semibold">
+                                        <span class="font-normal opacity-50">{{ $bienApercu->reference_etiquette['libelle'] }} :</span>
+                                        {{ $bienApercu->reference_etiquette['valeur'] }}
+                                    </p>
+                                @endif
                                 <p x-show="showCode" class="mt-2 truncate text-[8px] opacity-60">{{ $site->immobilisations->first()?->code_formate ?? 'NJ/DES/CAT/2026/SF/001' }}</p>
                             </div>
                         </div>

@@ -50,6 +50,15 @@
         .composant { margin-top: {{ .7 * $echelleContenu }}mm; font-size: {{ 5.7 * $echelleContenu }}pt; line-height: 1.05; opacity: .78; }
         .champ-label { margin-top: {{ 1.4 * $echelleContenu }}mm; font-size: {{ 4 * $echelleContenu }}pt; font-weight: bold; text-transform: uppercase; letter-spacing: {{ .35 * $echelleContenu }}pt; opacity: .48; }
         .site { margin-top: {{ .25 * $echelleContenu }}mm; font-size: {{ 5.6 * $echelleContenu }}pt; line-height: 1.05; }
+        .reference {
+            margin-top: {{ .55 * $echelleContenu }}mm;
+            overflow: hidden;
+            font-size: {{ 4.4 * $echelleContenu }}pt;
+            font-weight: bold;
+            line-height: 1.05;
+            white-space: nowrap;
+        }
+        .reference-label { font-weight: normal; opacity: .58; }
         .code {
             margin-top: {{ 1 * $echelleContenu }}mm;
             overflow: hidden;
@@ -68,6 +77,7 @@
         .composant { margin-top: {{ .45 * $echelleContenu }}mm; font-size: {{ 4.2 * $echelleContenu }}pt; }
         .champ-label { margin-top: {{ .8 * $echelleContenu }}mm; font-size: {{ 3 * $echelleContenu }}pt; letter-spacing: {{ .1 * $echelleContenu }}pt; }
         .site { margin-top: {{ .15 * $echelleContenu }}mm; font-size: {{ 4.1 * $echelleContenu }}pt; }
+        .reference { margin-top: {{ .35 * $echelleContenu }}mm; font-size: {{ 3.7 * $echelleContenu }}pt; }
         .code { margin-top: {{ .7 * $echelleContenu }}mm; font-size: {{ 4.4 * $echelleContenu }}pt; }
         @endif
         @if($configuration['narrow_layout'])
@@ -79,6 +89,7 @@
         .composant { margin-top: {{ .35 * $echelleContenu }}mm; font-size: {{ 4 * $echelleContenu }}pt; }
         .champ-label { margin-top: {{ .55 * $echelleContenu }}mm; font-size: {{ 2.8 * $echelleContenu }}pt; }
         .site { margin-top: {{ .1 * $echelleContenu }}mm; font-size: {{ 3.8 * $echelleContenu }}pt; }
+        .reference { margin-top: {{ .25 * $echelleContenu }}mm; font-size: {{ 3.4 * $echelleContenu }}pt; }
         .code { margin-top: {{ .55 * $echelleContenu }}mm; }
         @endif
     </style>
@@ -123,6 +134,12 @@
                         @if($configuration['show_emplacement'])
                             <div class="champ-label">Site</div>
                             <div class="site">{{ $site->site }}</div>
+                        @endif
+                        @if(!empty($etiquette['reference']))
+                            <div class="reference">
+                                <span class="reference-label">{{ $etiquette['reference']['libelle'] }} :</span>
+                                {{ $etiquette['reference']['valeur'] }}
+                            </div>
                         @endif
                         @if($configuration['show_code'])
                             {{-- Code d'inventaire en clair, juste sous le site. --}}

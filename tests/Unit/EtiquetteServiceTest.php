@@ -26,6 +26,38 @@ class EtiquetteServiceTest extends TestCase
         $this->assertNull($etiquettes->first()['composant']);
     }
 
+    public function test_la_reference_etiquette_utilise_attm_puis_dernier_inventaire_puis_chassis(): void
+    {
+        $bien = $this->bienAvecComposants(false, []);
+        $bien->numero_attm = 'ATTM-001';
+        $bien->code_dernier_inventaire = 'INV-2025-100';
+        $bien->numero_chassis = 'CHASSIS-XYZ';
+
+        $this->assertSame(
+            ['libelle' => 'N° ATTM', 'valeur' => 'ATTM-001'],
+            (new EtiquetteService)->etiquettesPourBien($bien)->first()['reference'],
+        );
+
+        $bien->numero_attm = ' ';
+        $this->assertSame(
+            ['libelle' => 'Dernier inv.', 'valeur' => 'INV-2025-100'],
+            (new EtiquetteService)->etiquettesPourBien($bien)->first()['reference'],
+        );
+
+        $bien->code_dernier_inventaire = null;
+        $this->assertSame(
+            ['libelle' => 'N° châssis', 'valeur' => 'CHASSIS-XYZ'],
+            (new EtiquetteService)->etiquettesPourBien($bien)->first()['reference'],
+        );
+    }
+
+    public function test_la_reference_est_absente_si_aucun_identifiant_metier_nest_renseigne(): void
+    {
+        $bien = $this->bienAvecComposants(false, []);
+
+        $this->assertNull((new EtiquetteService)->etiquettesPourBien($bien)->first()['reference']);
+    }
+
     public function test_un_materiel_compose_genere_une_etiquette_par_composant_et_quantite(): void
     {
         $bien = $this->bienAvecComposants(true, [

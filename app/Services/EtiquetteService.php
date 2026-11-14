@@ -162,6 +162,7 @@ class EtiquetteService
                 'code_affiche' => $bien->code_formate,
                 'contenu_qr' => $bien->contenu_qr,
                 'nom_composant' => null,
+                'reference' => $bien->reference_etiquette,
             ]]);
         }
 
@@ -180,6 +181,7 @@ class EtiquetteService
                             "{$bien->scan_code}-{$composant->code}{$suffixe}",
                         ),
                         'nom_composant' => $composant->nom,
+                        'reference' => $bien->reference_etiquette,
                     ];
                 })
                 ->all();

@@ -236,6 +236,29 @@ class Immobilisation extends Model
     }
 
     /**
+     * Référence métier prioritaire affichée sur l'étiquette.
+     * L'ordre demandé est : numéro ATTM, dernier inventaire, numéro de châssis.
+     *
+     * @return array{libelle: string, valeur: string}|null
+     */
+    public function getReferenceEtiquetteAttribute(): ?array
+    {
+        foreach ([
+            ['libelle' => 'N° ATTM', 'valeur' => $this->numero_attm],
+            ['libelle' => 'Dernier inv.', 'valeur' => $this->code_dernier_inventaire],
+            ['libelle' => 'N° châssis', 'valeur' => $this->numero_chassis],
+        ] as $reference) {
+            $valeur = trim((string) $reference['valeur']);
+
+            if ($valeur !== '') {
+                return ['libelle' => $reference['libelle'], 'valeur' => $valeur];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Contenu du QR code de l'étiquette : « code d'inventaire | GS<id> ».
      * Le code d'inventaire reste lisible par n'importe quel lecteur ; le GS<id>,
      * immuable, identifie le bien même si son code est recalculé ensuite.
