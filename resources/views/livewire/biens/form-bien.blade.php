@@ -86,7 +86,7 @@
                     {{-- Site --}}
                     <div>
                         <label for="site_id" class="block text-sm font-medium text-gray-700 mb-1">
-                            Site <span class="text-red-500">*</span>
+                            Site
                         </label>
                         <livewire:components.searchable-select
                             wire:key="site-{{ $localisation_id ?: 'tous' }}-{{ $referencesVersion }}"
@@ -119,7 +119,7 @@
                     {{-- Désignation --}}
                     <div>
                         <label for="designation_id" class="block text-sm font-medium text-gray-700 mb-1">
-                            Désignation de l'immobilisation <span class="text-red-500">*</span>
+                            Désignation de l'immobilisation
                         </label>
                         <livewire:components.searchable-select
                             wire:key="designation-{{ $bienId ?? 'new' }}-{{ $referencesVersion }}"
@@ -147,7 +147,7 @@
                     {{-- Catégorie --}}
                     <div>
                         <label for="categorie_id" class="block text-sm font-medium text-gray-700 mb-1">
-                            Catégorie (imputation comptable) <span class="text-red-500">*</span>
+                            Catégorie (imputation comptable)
                         </label>
                         <livewire:components.searchable-select
                             wire:key="categorie-{{ $designation_id ?: 'aucune' }}-{{ $referencesVersion }}"
@@ -215,6 +215,14 @@
                     </div>
 
                     <div>
+                        <label for="immatriculation" class="block text-sm font-medium text-gray-700 mb-1">Immatriculation</label>
+                        <input type="text" id="immatriculation" wire:model="immatriculation" maxlength="100"
+                            placeholder="Ex. 1234 AA 00" class="{{ $champ }} font-mono @error('immatriculation') border-red-300 @enderror">
+                        @error('immatriculation')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div>
                         <label for="numero_attm" class="block text-sm font-medium text-gray-700 mb-1">Numéro ATTM</label>
                         <input type="text" id="numero_attm" wire:model="numero_attm" maxlength="100"
                             placeholder="Saisir le numéro ATTM"
@@ -238,7 +246,7 @@
                     {{-- État --}}
                     <div>
                         <label for="etat_id" class="block text-sm font-medium text-gray-700 mb-1">
-                            État de l'immo <span class="text-red-500">*</span>
+                            État de l'immo
                         </label>
                         <livewire:components.searchable-select
                             wire:key="etat-{{ $bienId ?? 'new' }}-{{ $referencesVersion }}"
@@ -313,7 +321,7 @@
 
                     <div>
                         <label for="annee_acquisition" class="block text-sm font-medium text-gray-700 mb-1">
-                            Année d'acquisition <span class="text-red-500">*</span>
+                            Année d'acquisition
                         </label>
                         <input type="number" id="annee_acquisition" wire:model="annee_acquisition" min="1950"
                             class="{{ $champ }} @error('annee_acquisition') border-red-300 @enderror">

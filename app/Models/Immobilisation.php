@@ -40,6 +40,7 @@ class Immobilisation extends Model
         'marque',
         'modele',
         'numero_chassis',
+        'immatriculation',
         'numero_attm',
         'code_immo',
         'photo_path',
@@ -69,7 +70,6 @@ class Immobilisation extends Model
                 $bien->numero_article = static::prochainNumeroArticle($bien->designation_id);
             }
 
-            $bien->annee_acquisition ??= (int) now()->year;
             $bien->code_propose = $bien->calculerCode();
         });
 

@@ -165,6 +165,10 @@
                         <dd class="text-sm font-medium text-gray-900 font-mono break-all">{{ $bien->numero_chassis ?: '-' }}</dd>
                     </div>
                     <div>
+                        <dt class="text-sm text-gray-500">Immatriculation</dt>
+                        <dd class="text-sm font-medium text-gray-900 font-mono break-all">{{ $bien->immatriculation ?: '-' }}</dd>
+                    </div>
+                    <div>
                         <dt class="text-sm text-gray-500">Numéro ATTM</dt>
                         <dd class="text-sm font-medium text-gray-900 font-mono break-all">{{ $bien->numero_attm ?: '-' }}</dd>
                     </div>
